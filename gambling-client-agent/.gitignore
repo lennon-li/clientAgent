@@ -1,0 +1,15 @@
+# Secrets. Belt and braces: this tree is not a git repo today, but it may
+# become one, and these must never enter history.
+.env
+.env.*
+!.env.example
+secrets/
+
+# Runtime state and build artefacts.
+state/
+logs/
+gateway/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+evidence/*.log

@@ -1,0 +1,31 @@
+# FIRST RUN FALLBACK -- overlay, never used on its own.
+#
+#   docker compose -f compose.yml -f compose.firstrun.yml up -d
+#
+# You should not normally need this file. In the pinned version (0.10.2) the
+# first account can be created with signups already closed: when the user table
+# is empty, POST /api/v1/auths/signup skips the ui.enable_signup check and the
+# login page renders as "Create Admin Account". compose.yml alone is enough.
+#
+# Use this file only if that is not what you see -- if the login page offers no
+# way to create the first account. Then:
+#
+#   1. docker compose -f compose.yml -f compose.firstrun.yml up -d
+#   2. create the admin account in the browser
+#   3. docker compose up -d          <- NOTE: no -f flags. This is the flip.
+#
+# Step 3 is a plain `docker compose up -d`, which recreates the container from
+# compose.yml alone, so signups close again. The safe state is the state you
+# get by forgetting this file exists; the unsafe state takes two explicit -f
+# flags to reach. Getting the order wrong locks nobody out permanently -- an
+# empty user table can always be onboarded again with this overlay.
+#
+# Never leave the stack running with this overlay applied. Confirm with:
+#   docker inspect compliance-webui --format '{{json .Config.Env}}' | tr ',' '\n' | grep ENABLE_SIGNUP
+# which must print ENABLE_SIGNUP=false in the steady state.
+
+services:
+  webui:
+    environment:
+      ENABLE_SIGNUP: "true"
+      ENABLE_SIGNUP_PASSWORD_CONFIRMATION: "true"

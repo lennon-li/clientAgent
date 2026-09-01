@@ -1,0 +1,47 @@
+# Runtime configuration and credentials
+.env
+.env.*
+!.env.example
+openUI
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Runtime state and client activity
+state/
+logs/
+evidence/
+worktrees/
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Local environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.Rhistory
+.RData
+
+# Generated/client data and previews
+data/
+agentData/
+backup/
+output/
+library/
+*.csv
+*.xls
+*.xlsx
+*.xlsb
+*.rds
+*.html
+*_cache/
+*_files/
+.quarto/

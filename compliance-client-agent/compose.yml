@@ -1,0 +1,208 @@
+# Dedicated Open WebUI instance for the compliance client agent.
+#
+#   docker compose up -d          # start (safe state: signups closed)
+#   docker compose logs -f        # follow
+#   docker compose down           # stop and remove the container (KEEPS the data)
+#
+# Read the README section "Bringing up the client UI" before running any of
+# these. The order of the steps there matters.
+#
+# LOOPBACK ONLY. This file must never publish a port, never bind 0.0.0.0, and
+# never mount the docker socket. `ss -ltn` after `up` must show 127.0.0.1:8080
+# and nothing new anywhere else.
+#
+# ---------------------------------------------------------------------------
+# WHY network_mode: host
+# ---------------------------------------------------------------------------
+# The gateway listens on the HOST's 127.0.0.1:8642 and refuses to bind anything
+# else (app/config.py rejects a non-loopback host). A bridge-networked
+# container has its own network namespace, so its 127.0.0.1 is its own
+# loopback and the gateway is unreachable from it. Three ways out were
+# considered:
+#
+#   1. network_mode: host  <- CHOSEN
+#      The container shares the host network namespace, so http://127.0.0.1:8642
+#      inside the container IS the gateway. Nothing about the gateway changes,
+#      the pipe needs no edit (its default URL is already correct), and no
+#      docker-published port and no iptables DNAT rule is created at all.
+#      Open WebUI is pinned to loopback with HOST=127.0.0.1 below.
+#
+#   2. Give the gateway a second bind on the docker bridge (172.17.0.1).
+#      REJECTED: that is an off-loopback listener reachable by every container
+#      on this host, and it would mean editing the gateway's bind, which is the
+#      one boundary the whole system rests on.
+#
+#   3. A unix domain socket bind-mounted into the container.
+#      REJECTED for now: it is the tightest option in principle (no network
+#      surface at all, filesystem permissions as the access control), but it
+#      requires changing the gateway to serve on --uds, changing
+#      compliance_agent_pipe.py to use an httpx UDS transport, and changing the
+#      future nginx layer. That is a change to a tested security-critical
+#      component for a benefit that host networking already delivers here.
+#      Revisit if the container ever needs to be untrusted.
+#
+# TRADE-OFF ACCEPTED with option 1: the container has NO network isolation from
+# the host. It shares the host's network namespace, so it can reach every
+# loopback-only service on asgard -- the gateway (8642), RStudio (8787), CUPS
+# (631), shiny-server (3838), and anything else bound to 127.0.0.1 -- all of
+# which are written assuming "loopback == same host == trusted". A compromise
+# of Open WebUI (a malicious function/pipe import, an unpatched RCE) therefore
+# reaches those services directly. Compensating controls below: non-root uid,
+# all capabilities dropped, no-new-privileges, one bind mount and nothing else,
+# no docker socket. Filesystem isolation (mount namespace) is intact; only the
+# network namespace is shared.
+#
+# The second consequence: HOST=127.0.0.1 is the ONLY thing keeping this off the
+# LAN. There is no docker port-publish step to get wrong, but there is also no
+# second net to catch a bad edit. Re-run `ss -ltn` after any change here.
+
+name: compliance-webui
+
+services:
+  webui:
+    # Pinned by tag AND digest. Never :latest -- see the README "Update" step.
+    # 0.10.2, published 2026-07-01. 0.11.0 exists (2026-07-27) and was
+    # deliberately not taken: 0.10.2 is the settled end of the previous line.
+    image: ghcr.io/open-webui/open-webui:0.10.2@sha256:9fcea9c6e32ab60b0498f3986c6cdf651ddbe61db48d2213a3d28048ddd673d4
+    container_name: compliance-webui
+    network_mode: host
+    restart: unless-stopped
+
+    # Run as yeli's uid/gid, not root. The image defaults to root; it does not
+    # need to be. This also keeps every file under state/webui-data owned by
+    # yeli, so backups and inspection need no sudo.
+    user: "1000:1000"
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    environment:
+      # --- the loopback pin. Nothing else keeps this off the LAN. -----------
+      HOST: "127.0.0.1"
+      PORT: "8080"
+      WEBUI_URL: "https://10.48.50.117:8443"
+
+      # --- sessions --------------------------------------------------------
+      # From .env (mode 600), which docker compose reads for interpolation.
+      # Sessions survive a restart because this value is stable. Changing it
+      # logs everyone out. It is NOT the gateway secret and NOT the login
+      # password.
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in .env}
+
+      # --- who may get in --------------------------------------------------
+      WEBUI_AUTH: "true"
+      # Closed. This is the steady state and the default state.
+      # First-run note: an EMPTY user table is a special case in 0.10.2 --
+      # /api/v1/auths/signup does not check ui.enable_signup when no user
+      # exists, and the login page renders "Create Admin Account". So the very
+      # first (admin) account can be created with signups closed, and every
+      # account after that cannot. compose.firstrun.yml exists as a fallback;
+      # see the README.
+      ENABLE_SIGNUP: "false"
+      ENABLE_LOGIN_FORM: "true"
+      # Needed for the admin API used to install the reviewed compliance pipe.
+      ENABLE_API_KEYS: "true"
+      # Anyone who somehow registers lands with no access at all.
+      DEFAULT_USER_ROLE: "pending"
+
+      # --- make the compose file the single source of truth ----------------
+      # With this false, Open WebUI reads these settings from the environment
+      # on EVERY boot instead of from the config table in webui.db. Without it,
+      # a value written to the DB (by an admin toggling it in the UI once)
+      # silently wins over this file forever, which is exactly how a
+      # "signups are off" setting quietly becomes untrue.
+      # Trade-off: settings changed in Admin Settings that map to these keys do
+      # NOT survive a restart. To change one permanently, change it here.
+      # Users, functions, models and chats are separate tables and are NOT
+      # affected by this -- they persist normally.
+      ENABLE_PERSISTENT_CONFIG: "false"
+
+      # --- reduce the surface the client sees ------------------------------
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "false"
+      ENABLE_DIRECT_CONNECTIONS: "false"
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_ADMIN_EXPORT: "false"
+      ENABLE_ADMIN_CHAT_ACCESS: "false"
+      ENABLE_USER_WEBHOOKS: "false"
+      ENABLE_CHANNELS: "false"
+      ENABLE_NOTES: "false"
+      ENABLE_WEB_SEARCH: "false"
+      ENABLE_CODE_EXECUTION: "false"
+      ENABLE_CODE_INTERPRETER: "false"
+      # There is no chat model other than the pipe, so the background LLM calls
+      # for titles/tags/follow-ups have nothing to call. Off, or every message
+      # trails a failed request.
+      ENABLE_TITLE_GENERATION: "false"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+
+      # --- no phoning home -------------------------------------------------
+      ANONYMIZED_TELEMETRY: "false"
+      DO_NOT_TRACK: "true"
+      SCARF_NO_ANALYTICS: "true"
+      ENABLE_VERSION_UPDATE_CHECK: "false"
+      # The embedding/whisper model caches are baked into the image under
+      # /app/backend/data, which the bind mount below covers up;
+      # scripts/init_webui_data.sh seeds them into the bind. OFFLINE_MODE then
+      # means a missing model fails loudly instead of silently downloading.
+      OFFLINE_MODE: "true"
+
+      # Exactly one origin: the nginx TLS listener the client actually reaches.
+      # This is what the browser sends as Origin, so it is what must match.
+      # NOT a wildcard -- "*" would let any page on the LAN drive the API with
+      # the client's session. Update this in lockstep with WEBUI_URL if the
+      # ingress address ever changes.
+      # Open WebUI accepts semicolon-separated origins. Keep the LAN ingress
+      # and the Tailscale ingress in sync so Socket.IO can carry live chat
+      # completion events on either URL.
+      CORS_ALLOW_ORIGIN: "https://10.48.50.117:8443;https://100.80.45.60:8443"
+
+      # The image re-copies its frontend static assets over STATIC_DIR at every
+      # boot. The default target is inside the read-only-to-uid-1000 image
+      # tree, which logs four permission errors on every start. Point it at the
+      # data bind instead.
+      STATIC_DIR: "/app/backend/data/static"
+
+      # HOME is /root in the image and uid 1000 cannot write there.
+      HOME: "/app/backend/data/home"
+
+      # --- how the pipe reaches the gateway --------------------------------
+      # 127.0.0.1 here is the HOST's loopback, because of network_mode: host.
+      # compliance_agent_pipe.py reads both of these at import time as its
+      # valve defaults, so the secret never has to be typed into the browser
+      # and never lands in a chat, a valve default, or the DB in plaintext.
+      COMPLIANCE_GATEWAY_URL: "http://127.0.0.1:8642"
+      COMPLIANCE_GATEWAY_SECRET: ${COMPLIANCE_GATEWAY_SECRET:?set COMPLIANCE_GATEWAY_SECRET in .env}
+      GAMBLING_GATEWAY_URL: "http://127.0.0.1:8643"
+      GAMBLING_GATEWAY_SECRET: ${GAMBLING_GATEWAY_SECRET:?set GAMBLING_GATEWAY_SECRET in .env}
+
+    volumes:
+      # The ONLY mount. Open WebUI's whole persistent state: webui.db (users,
+      # chats, functions, config), uploads/, vector_db/, and the model caches.
+      # A bind under state/ rather than a named volume so it sits with the rest
+      # of the service's state, is owned by yeli, and backs up with plain tar.
+      #
+      # /home/yeli is NOT mounted. The gateway tree is NOT mounted. The docker
+      # socket is NOT mounted. The container has no filesystem access to this
+      # host beyond this one directory.
+      - ./state/webui-data:/app/backend/data
+
+    healthcheck:
+      # Same check the image ships, restated so it is visible here.
+      test: ["CMD-SHELL", "curl --silent --fail http://127.0.0.1:8080/health | jq -ne 'input.status == true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
