@@ -7,6 +7,7 @@ import yaml
 
 from clientagent.deployment import DeploymentAdapter, DeploymentConfig
 from clientagent.governance import GovernanceError, load_governance, require_startable
+from clientagent.runtime import RuntimeCapabilitySnapshot, RuntimeEnforcementAdapter
 
 TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "specialized-agent-governance.yaml"
 
@@ -34,6 +35,73 @@ def _write_policy(path: Path, *, approved: bool = False) -> None:
         policy = load_governance(path)
         data["approval"]["approved_policy_hash"] = policy.policy_hash
         path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def _runtime_adapter(policy):
+    paths = (
+        "capabilities.resource_access.cross_project_access",
+        "capabilities.operations.arbitrary_command_execution",
+        "capabilities.tools.unlisted_tools_allowed",
+        "capabilities.network.unlisted_destinations_allowed",
+        "capabilities.data.row_level_access",
+        "capabilities.data.export_allowed",
+        "capabilities.credentials.direct_access_allowed",
+        "capabilities.credentials.credential_export_allowed",
+        "workspace_policy.reuse_across_users",
+        "workspace_policy.automatic_destructive_cleanup",
+        "verification.agent_self_report_is_evidence",
+        "artifact_policy.active_content_allowed",
+        "artifact_policy.sensitive_data_allowed",
+        "review_policy.user_acceptance_authorizes_integration",
+        "review_policy.user_acceptance_authorizes_release",
+        "review_policy.user_acceptance_authorizes_deployment",
+        "failure_policy.automatic_retry_allowed",
+        "failure_policy.automatic_reset_allowed",
+        "failure_policy.automatic_evidence_deletion_allowed",
+        "workspace_policy.isolation_required",
+        "workspace_policy.dedicated_to_agent_and_project",
+        "workspace_policy.preserve_on_uncertainty",
+        "workspace_policy.integrity_check_before_trusted_action",
+        "verification.required",
+        "verification.independent_from_agent",
+        "verification.verifies_immutable_candidate",
+        "verification.evidence_required",
+        "verification.artifact_requires_verification",
+        "artifact_policy.immutable_versions",
+        "artifact_policy.content_hash_required",
+        "artifact_policy.parent_revision_link_required",
+        "artifact_policy.content_inspection_required",
+        "artifact_policy.compare_with_previous_revision",
+        "review_policy.required",
+        "review_policy.feedback_bound_to_artifact_version",
+        "review_policy.revision_requires_new_verification",
+        "review_policy.revision_requires_new_artifact",
+        "failure_policy.fail_closed",
+        "failure_policy.resume_requires_maintainer",
+        "capabilities.resource_access.readable",
+        "capabilities.resource_access.writable",
+        "capabilities.operations.allowed_action_ids",
+        "capabilities.tools.allowed_tool_ids",
+        "capabilities.network.allowed_destinations",
+        "capabilities.network.allowed_methods",
+        "capabilities.data.allowed_sources",
+        "capabilities.credentials.brokered_credential_ids",
+        "models.allowed",
+    )
+    effective = {}
+    for path in paths:
+        value = policy.raw
+        for part in path.split("."):
+            value = value[part]
+        effective[path] = value
+    adapter = policy.raw["execution_adapter"]
+    snapshot = RuntimeCapabilitySnapshot(
+        cli_agent=adapter["cli_agent"], cli_version=adapter["cli_version"],
+        adapter_id=adapter["adapter_id"], adapter_version=adapter["adapter_version"],
+        policy_mapping_version=adapter["policy_mapping_version"],
+        effective_capabilities=effective,
+    )
+    return RuntimeEnforcementAdapter(lambda: snapshot)
 
 
 def test_missing_file_fails_closed(tmp_path):
@@ -69,8 +137,10 @@ def test_approved_policy_requires_matching_hash(tmp_path):
 def test_deployment_adapter_attaches_policy_identity_to_execution(tmp_path):
     path = tmp_path / "governance.yaml"
     _write_policy(path, approved=True)
+    policy = load_governance(path)
     adapter = DeploymentAdapter(
-        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path,
+                         runtime_adapter=_runtime_adapter(policy))
     )
 
     with pytest.raises(RuntimeError, match="not passed"):
@@ -82,6 +152,17 @@ def test_deployment_adapter_attaches_policy_identity_to_execution(tmp_path):
     assert seen["project_id"] == "configured"
     assert seen["policy_hash"] == attestation.policy_hash
     assert adapter.evidence("startup")["governance"]["policy_hash"] == attestation.policy_hash
+
+
+def test_deployment_requires_a_server_owned_runtime_adapter(tmp_path):
+    path = tmp_path / "governance.yaml"
+    _write_policy(path, approved=True)
+    adapter = DeploymentAdapter(
+        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+    )
+
+    with pytest.raises(RuntimeError, match="runtime enforcement adapter"):
+        adapter.start()
 
 
 def test_deployment_adapter_refuses_project_identity_mismatch(tmp_path):
@@ -97,8 +178,10 @@ def test_deployment_adapter_refuses_project_identity_mismatch(tmp_path):
 def test_failed_revalidation_revokes_an_earlier_attestation(tmp_path):
     path = tmp_path / "governance.yaml"
     _write_policy(path, approved=True)
+    policy = load_governance(path)
     adapter = DeploymentAdapter(
-        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path,
+                         runtime_adapter=_runtime_adapter(policy))
     )
     adapter.start()
 
@@ -123,6 +206,8 @@ def test_startup_rejects_a_broadened_capability_even_when_approved(tmp_path):
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
 
     with pytest.raises(GovernanceError, match="arbitrary command"):
+        policy = load_governance(path)
         DeploymentAdapter(
-            DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+            DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path,
+                             runtime_adapter=_runtime_adapter(policy))
         ).start()

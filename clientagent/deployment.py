@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from .governance import GovernancePolicy, load_governance, require_startable
+from .runtime import RuntimeAttestation, RuntimeEnforcementAdapter
 
 T = TypeVar("T")
 
@@ -19,6 +20,7 @@ class DeploymentConfig:
     deployment_id: str
     project_id: str
     governance_file: Path
+    runtime_adapter: RuntimeEnforcementAdapter | None = None
 
     def __post_init__(self) -> None:
         for field in ("deployment_id", "project_id"):
@@ -39,8 +41,9 @@ class PolicyAttestation:
     contract_version: str
     template_version: str
     policy_hash: str
+    runtime: RuntimeAttestation
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "deployment_id": self.deployment_id,
             "project_id": self.project_id,
@@ -48,6 +51,7 @@ class PolicyAttestation:
             "contract_version": self.contract_version,
             "template_version": self.template_version,
             "policy_hash": self.policy_hash,
+            "runtime": self.runtime.as_dict(),
         }
 
 
@@ -87,6 +91,9 @@ class DeploymentAdapter:
                 "governance project_id does not match deployment config: "
                 f"{declared_project!r} != {self._config.project_id!r}"
             )
+        if self._config.runtime_adapter is None:
+            raise RuntimeError("server-owned runtime enforcement adapter is required")
+        runtime_attestation = self._config.runtime_adapter.attest(policy)
         self._policy = policy
         self._attestation = PolicyAttestation(
             deployment_id=self._config.deployment_id,
@@ -95,6 +102,7 @@ class DeploymentAdapter:
             contract_version=policy.contract_version,
             template_version=policy.raw["template_version"],
             policy_hash=policy.policy_hash,
+            runtime=runtime_attestation,
         )
         return self._attestation
 

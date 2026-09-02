@@ -16,6 +16,12 @@ from .setup import (
     create_draft,
     effective_policy_summary,
 )
+from .runtime import (
+    RuntimeAdapterError,
+    RuntimeAttestation,
+    RuntimeCapabilitySnapshot,
+    RuntimeEnforcementAdapter,
+)
 
 __all__ = [
     "DeploymentAdapter",
@@ -23,6 +29,10 @@ __all__ = [
     "GovernanceError",
     "GovernancePolicy",
     "PolicyAttestation",
+    "RuntimeAdapterError",
+    "RuntimeAttestation",
+    "RuntimeCapabilitySnapshot",
+    "RuntimeEnforcementAdapter",
     "SetupDraft",
     "SetupError",
     "SetupFinding",

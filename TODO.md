@@ -215,9 +215,9 @@ outside the model through a versioned adapter and independent controls.
 - [ ] Map each governance field to a native CLI control, an external enforcement
       control, or `unsupported`. Never map an enforceable requirement to prompt
       text alone.
-- [ ] Refuse to start when a required policy rule cannot be enforced for the
+- [x] Refuse to start when a required policy rule cannot be enforced for the
       selected CLI agent and version.
-- [ ] Verify the actual CLI version and effective capabilities at startup and
+- [x] Verify the actual CLI version and effective capabilities at startup and
       record the adapter and policy-mapping versions with each job.
 - [ ] Prevent personal, repository, environment, extension, or session-level CLI
       configuration from widening the approved policy.
@@ -271,7 +271,7 @@ outside the model through a versioned adapter and independent controls.
       cannot exercise directly.
 - [ ] Check effective permissions at startup and before each protected action;
       do not assume the deployed environment matches the declared policy.
-- [ ] Fail closed when the actual capability set is broader than the approved
+- [x] Fail closed when the actual capability set is broader than the approved
       template.
 
 ## P0 — implement a governed lifecycle
