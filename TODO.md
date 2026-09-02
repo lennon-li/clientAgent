@@ -140,6 +140,139 @@ Each agent must have a versioned, system-controlled contract.
 - [ ] Never allow conversation content, project content, tool output, or an
       agent-authored file to widen the contract.
 
+## P0 — require a developer-authored governance template
+
+Every Specialized Agent Bundle must include a completed and approved
+`specialized-agent-governance.yaml`, based on
+[`templates/specialized-agent-governance.yaml`](templates/specialized-agent-governance.yaml).
+The template is part of the agent's enforceable contract, not supporting
+documentation.
+
+- [ ] Require the developer to state, in plain language, what the agent may do,
+      must do, must not do, and must escalate.
+- [ ] Require matching structured controls for every declared capability. Plain
+      language may narrow permissions but can never grant a permission absent
+      from the structured policy.
+- [ ] Reject ambiguous, conflicting, incomplete, or overly broad declarations.
+- [ ] Default every capability to denied and every resource budget to zero until
+      the developer supplies an approved value.
+- [ ] Validate the template against a versioned schema before the agent can be
+      enabled.
+- [ ] Require named developer, project owner, governance owner, approver,
+      approval time, contract version, and review or expiry date.
+- [ ] Record the exact governance-template version and integrity hash with every
+      request, agent run, verification, artifact, review, and escalation.
+- [ ] Require reapproval when capabilities, data access, tools, models, budgets,
+      artifact types, verification, or review authority change.
+- [ ] Refuse runtime overrides from users, agents, project content, tools, or
+      environment-provided free text.
+
+### Setup-agent interview
+
+Use a dedicated setup agent to create the first draft of the governance file.
+Follow
+[`templates/setup-agent-questionnaire.md`](templates/setup-agent-questionnaire.md)
+so every specialized bundle is configured through the same explicit decisions.
+
+- [ ] Keep the setup agent separate from the client-facing working agent. The
+      setup agent configures policy; it does not perform project work.
+- [ ] Ask focused questions one at a time and write each confirmed answer to the
+      corresponding structured field.
+- [ ] Ask about project purpose, intended users, supported and prohibited
+      requests, allowed resources, data classification, operations, tools,
+      external communication, models, artifacts, verification, review roles,
+      escalation, retention, and incident ownership.
+- [ ] Ask the developer to set hard token, cost, time, tool-call, concurrency,
+      revision, storage, file-change, and artifact-size limits.
+- [ ] Provide a safe recommended choice where useful, but clearly distinguish a
+      recommendation from a confirmed answer.
+- [ ] Never infer or silently broaden permissions from the project description.
+      Unanswered or uncertain permissions remain denied.
+- [ ] Allow the setup agent to write only a `draft`, disabled configuration. It
+      cannot approve the policy, mark effective permissions verified, or enable
+      the working agent.
+- [ ] Validate the draft continuously and identify conflicts, missing required
+      answers, unenforceable rules, and capabilities requiring external
+      controls.
+- [ ] End with an effective-policy summary in plain language: what the agent can
+      access, change, call, produce, disclose, approve, and never do.
+- [ ] Show the complete configuration diff and risk summary before asking the
+      developer and governance owner for approval.
+- [ ] Preserve the setup session ID, questionnaire version, confirmed answers,
+      unresolved questions, and approval record for audit.
+
+### CLI-agent enforcement adapters
+
+CLI agents do not share one permission model and do not automatically follow
+the governance file. Treat the file as framework policy that must be enforced
+outside the model through a versioned adapter and independent controls.
+
+- [ ] Maintain a capability matrix for every supported CLI agent and version,
+      covering filesystem access, network access, tools, commands, extensions,
+      external services, model selection, configuration precedence, approvals,
+      token reporting, cancellation, and session continuation.
+- [ ] Map each governance field to a native CLI control, an external enforcement
+      control, or `unsupported`. Never map an enforceable requirement to prompt
+      text alone.
+- [ ] Refuse to start when a required policy rule cannot be enforced for the
+      selected CLI agent and version.
+- [ ] Verify the actual CLI version and effective capabilities at startup and
+      record the adapter and policy-mapping versions with each job.
+- [ ] Prevent personal, repository, environment, extension, or session-level CLI
+      configuration from widening the approved policy.
+- [ ] Enforce token, cost, time, and tool budgets externally when the CLI does
+      not provide reliable native limits.
+- [ ] Terminate safely at a hard limit, preserve candidate work and evidence,
+      and report `budget_exhausted`; do not depend on the CLI agent to stop
+      itself.
+- [ ] Add contract tests for each adapter proving both allowed behavior and
+      denied behavior against the real supported CLI version.
+- [ ] Re-run adapter certification whenever the CLI agent or runtime version
+      changes.
+
+### Token, cost, and workload governance
+
+- [ ] Require hard limits for input tokens per model call, output tokens per
+      call, turns per job, cumulative tokens per job, cumulative tokens per
+      revision, and cumulative tokens per review cycle.
+- [ ] Require limits for cost per job and review cycle, wall-clock duration,
+      tool calls, retries, concurrent jobs, queued jobs, revisions, and artifact
+      size.
+- [ ] Define which context sources may consume the token budget and the maximum
+      allocation for conversation history, project context, retrieved context,
+      tool results, and system instructions.
+- [ ] Define the history policy explicitly: retain, summarize, retrieve, or
+      discard. Never silently remove information required to understand the
+      current artifact or revision request.
+- [ ] Perform a preflight budget check before every model or tool call and stop
+      safely when the remaining budget cannot support the next required step.
+- [ ] Measure actual usage after every call and stop at the first exceeded hard
+      limit. Do not silently increase a budget, switch to an unapproved model,
+      or continue in an unverified reduced-quality mode.
+- [ ] Distinguish `budget_exhausted` from technical failure and policy refusal.
+      Preserve work and tell the reviewer or maintainer what remains.
+- [ ] Include token, cost, duration, tool-call, and revision usage in governance
+      evidence, with alerts that do not expose sensitive prompt content.
+- [ ] Allow a budget increase only through an authenticated, recorded approval
+      that creates a new policy version; a chat message cannot increase it.
+
+### Capability governance
+
+- [ ] Require explicit allowlists for readable resources, writable resources,
+      operations, tools, data sources, external destinations, and artifact
+      types.
+- [ ] Require explicit denials for privileged operations, unrelated resources,
+      credential access, policy modification, self-approval, cross-project
+      access, and release actions.
+- [ ] Prefer named, brokered actions over arbitrary commands or unrestricted
+      tools.
+- [ ] Require an escalation owner and reason for every capability the agent
+      cannot exercise directly.
+- [ ] Check effective permissions at startup and before each protected action;
+      do not assume the deployed environment matches the declared policy.
+- [ ] Fail closed when the actual capability set is broader than the approved
+      template.
+
 ## P0 — implement a governed lifecycle
 
 - [ ] Use an explicit state model:
