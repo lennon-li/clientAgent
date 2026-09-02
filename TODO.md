@@ -1,389 +1,349 @@
-# Specialized Client Agents — TODO
+# clientAgent — Product Definition and TODO
 
 Last updated: 2026-09-02
 
-## Product decision
+## What we are building
 
-Build **specialized, project-specific client agents**, not a general coding
-agent and not a runtime that lets a client choose arbitrary repositories,
-tools, models, data, or deployment targets.
+`clientAgent` is a framework for deploying **governed, project-specific AI
+agents** that turn user requests into verified, reviewable artifacts through an
+iterative review-revise loop, while keeping integration and release under human
+control.
 
-The shared code is infrastructure only. Every deployed agent must be bound to
-one known project, one defined client role, one policy, and one review-artifact
-workflow. A project skill supplies domain behavior; the gateway enforces the
-boundaries that instructions cannot.
+It is an **artifact-centered specialized-agent framework**. It is not a general
+coding agent, a chatbot template, or an autonomous deployment system.
 
-The primary product workflow is:
+The reusable product unit is a **Specialized Agent Bundle**:
 
-> request -> bounded change -> independent verification -> review artifact ->
-> client feedback -> revised artifact -> client acceptance -> maintainer review
+| Component | Responsibility |
+|---|---|
+| Project skill | Domain knowledge, terminology, workflow, and communication |
+| Scope policy | Enforced permissions, boundaries, limits, and stop conditions |
+| Isolated workspace | Contains candidate work without exposing unrelated resources |
+| Independent verifier | Determines whether the candidate satisfies defined checks |
+| Artifact builder | Produces the exact output the user needs to review |
+| Review workflow | Records feedback, revisions, comparison, and user acceptance |
+| Maintainer gate | Separately decides whether accepted work may enter the project |
 
-Producing code is an implementation detail. The client-facing result is a safe,
-versioned artifact that the user can inspect and revise without needing Git or
-a terminal.
+The shared framework provides these controls, but every deployed bundle remains
+bound to one approved project, one purpose, one policy, and one artifact
+workflow.
 
-## Non-goals — keep the agents specialized
+The primary lifecycle is:
 
-- [ ] Do not add a client-supplied repository, project, branch, model, system
-      prompt, sandbox, command, credential, data source, or deployment target.
-- [ ] Do not add a project picker or a “developer mode” to the client UI.
-- [ ] Do not let one agent read another project's repository, memory, jobs,
-      workspaces, artifacts, data, or credentials.
-- [ ] Do not provide arbitrary shell, MCP, internet, package-installation, or
-      deployment access merely to make the bundle more flexible.
-- [ ] Do not auto-push, auto-open or merge PRs, deploy production, or interpret
-      client acceptance as maintainer approval.
-- [ ] Do not turn the shared runtime into a public multi-purpose agent API.
-- [ ] Do not claim success from the model's exit code or self-reported tests.
-- [ ] Do not overwrite a prior review artifact when producing a revision.
-- [ ] Do not render agent-authored code against sensitive data as a convenience
-      feature.
+> request -> bounded work -> independent verification -> review artifact ->
+> user feedback -> revised artifact -> user acceptance -> maintainer decision
 
-## P0 — close security boundary crossings before another client pilot
+Producing source changes is an internal step. The user-facing result is a safe,
+versioned artifact that can be understood and reviewed without development
+tools.
 
-### Prevent Git metadata from becoming an escape path
+## Design principles
 
-- [ ] Make `.git` metadata unavailable or read-only to the agent process,
-      including the default Copilot provider.
-- [ ] Run every gateway-owned Git command with a server-owned empty
-      `core.hooksPath`; never execute hooks from an agent-writable repository.
-- [ ] Ignore repository-local Git configuration when the gateway stages,
-      diffs, or commits. Review Git aliases, filters, attributes, submodules,
-      worktree config, and external diff/text-conversion drivers as equivalent
-      execution surfaces.
-- [ ] Add adversarial tests that attempt to plant `pre-commit`, `post-commit`,
-      clean/smudge filters, external diff commands, aliases, and malicious
-      repository config, and prove that no gateway-side command executes them.
-- [ ] Treat any unexpected `.git` mutation as `needs_attention`; preserve the
-      workspace and do not commit, verify, or publish it.
+- [ ] Specialization is enforced, not merely described in a prompt.
+- [ ] The agent receives only the capabilities and context required for its
+      declared purpose.
+- [ ] Configuration, policy, credentials, and authorization remain outside
+      user and agent control.
+- [ ] Every material result is independently verified before review.
+- [ ] Every reviewable artifact is immutable, attributable, and reproducible.
+- [ ] Review and revision are first-class workflow states, not chat conventions.
+- [ ] User acceptance and technical approval are separate decisions.
+- [ ] Failure or uncertainty stops progress safely and preserves evidence.
+- [ ] New capabilities require an explicit policy change and human approval.
 
-### Make artifact collection path-safe
+## Non-goals
 
-- [ ] Reject symlinks, hard links where detectable, devices, sockets, FIFOs,
-      and non-regular files at every allowed artifact source path.
-- [ ] Open artifact inputs without following symlinks and verify their resolved
-      location remains inside the expected verified workspace.
-- [ ] Copy through already-open file descriptors into a new staging directory;
-      do not perform a second path lookup after validation.
-- [ ] Enforce output count, type, and size limits before publishing.
-- [ ] Publish a complete artifact version atomically. A failed copy must leave
-      the prior version intact rather than expose a partially updated preview.
-- [ ] Add regression tests reproducing attempted path traversal, symlink swaps,
-      nested symlinks, oversized outputs, and partial publication failures.
+- [ ] Do not let users or agents select arbitrary projects, tools, models, data
+      sources, credentials, policies, or release destinations.
+- [ ] Do not provide a mode that turns a specialized agent into a general or
+      privileged agent.
+- [ ] Do not permit one agent to access another project's context, work,
+      artifacts, users, or data.
+- [ ] Do not add broad capabilities only for convenience or future flexibility.
+- [ ] Do not allow the agent to approve its own work.
+- [ ] Do not automatically integrate, release, or deploy a user-accepted result.
+- [ ] Do not treat model completion or self-reported checks as proof of success.
+- [ ] Do not replace a previously reviewed artifact when creating a revision.
 
-### Separate untrusted source from sensitive data
+## P0 — define the specialized-agent contract
 
-- [ ] Stop rendering arbitrary agent-modified R, Quarto, Python, JavaScript, or
-      shell code with real client data, even inside a networkless sandbox. The
-      code can disclose the data through the generated artifact itself.
-- [ ] Define a project-specific artifact contract. Prefer an approved renderer
-      consuming a typed, aggregate-only intermediate representation over
-      executing agent-authored code with data access.
-- [ ] Keep raw data outside agent workspaces and artifact builders. Expose only
-      explicitly approved de-identified summaries or aggregate query results.
-- [ ] Require human approval for any workflow that uses real or sensitive data,
-      and record the approver, source version, query/specification, output hash,
-      and disclosure checks.
-- [ ] Scan candidate artifacts for secrets, direct identifiers, unexpected
-      row-level output, embedded source data, external links, active content,
-      and unapproved network references before they become reviewable.
+Each agent must have a versioned, system-controlled contract.
 
-### Reduce the privilege of trusted services
+- [ ] Define a stable agent identity, project, purpose, owner, intended users,
+      and authorized reviewers.
+- [ ] Define the requests the agent may handle and explicit out-of-scope cases.
+- [ ] Define the information the agent may read, change, generate, and disclose.
+- [ ] Define protected resources that remain inaccessible under all conditions.
+- [ ] Define allowed operations, validation checks, artifact types, resource
+      limits, retention rules, and escalation conditions.
+- [ ] Define the user decisions supported by the review workflow.
+- [ ] Define the maintainer or governance role responsible for final approval.
+- [ ] Validate the contract before startup and fail closed if it is missing,
+      invalid, unapproved, or requests unsupported capabilities.
+- [ ] Record the contract version with every request, result, artifact, review,
+      and approval decision.
+- [ ] Never allow conversation content, project content, tool output, or an
+      agent-authored file to widen the contract.
 
-- [ ] Revisit the existing decision to run the gateway as `yeli`. Before any
-      external or multi-user use, run each project agent and its artifact
-      builder under a dedicated unprivileged identity or isolated workload with
-      no sudo, Docker socket, unrelated home directory, or production access.
-- [ ] If `yeli` remains for an internal pilot, record it as a temporary
-      product-launch blocker rather than a permanent product assumption.
-- [ ] Separate the agent runner, verifier, artifact builder, and publisher so a
-      compromise of one does not inherit every capability.
-- [ ] Give the publisher write access only to a versioned non-production review
-      store. It must not receive agent credentials, repository credentials,
-      source data, or production deployment rights.
-- [ ] Replace Open WebUI host networking before treating this as a reusable
-      deployment. Use a narrow authenticated IPC path so the UI cannot reach
-      unrelated loopback services.
+## P0 — implement a governed lifecycle
 
-### Make authorization project- and user-aware
+- [ ] Use an explicit state model:
 
-- [ ] Replace the service-wide bearer secret as the user authorization model.
-      Authenticate the UI-to-gateway service separately and pass a signed,
-      verified user identity.
-- [ ] Derive `user_id` from the authenticated identity; never trust a caller-
-      supplied identity field by itself.
-- [ ] Bind every chat, job, event stream, workspace, feedback item, and artifact
-      to both the project-agent instance and the authorized user or review
-      group.
-- [ ] Enforce ownership checks on reads as well as writes. Knowing a job or
-      artifact ID must not grant access.
-- [ ] Use opaque, unguessable identifiers and record authorization decisions.
-- [ ] Add negative tests for cross-user, cross-chat, and cross-project reads,
-      revision requests, artifact access, and approval attempts.
+      `submitted -> scoped -> working -> verification -> artifact_building ->`
+      `review_ready -> revision_requested | accepted | rejected`
 
-## P0 — make verification a gateway-owned decision
+- [ ] Allow any processing state to transition to `needs_attention` when safe
+      continuation is uncertain.
+- [ ] Require the request to fit the agent contract before work begins.
+- [ ] Preserve the relationship between the request, candidate result,
+      verification evidence, artifact, and review decision.
+- [ ] Prevent editing while an artifact is awaiting review unless the reviewer
+      explicitly requests a revision.
+- [ ] Resume revisions from the exact result associated with the reviewed
+      artifact, not from an ambiguous or later state.
+- [ ] Re-run verification and artifact creation after every revision.
+- [ ] Keep all prior review states and artifact versions available according to
+      the retention policy.
+- [ ] Require a separate maintainer decision after user acceptance.
 
-- [ ] Replace the current success interpretation with an explicit state model:
+## P0 — make verification independent
 
-      `queued -> editing -> agent_finished -> verification_running ->`
-      `artifact_building -> review_ready`
+- [ ] Treat agent output as a candidate requiring verification.
+- [ ] Verify the exact candidate version in a clean, controlled environment.
+- [ ] Use predefined checks that neither the user nor agent can alter.
+- [ ] Include functional, policy, security, privacy, and artifact-specific
+      checks appropriate to the project.
+- [ ] Store structured verification evidence, including the candidate version,
+      policy version, verifier version, checks performed, outcomes, timestamps,
+      and relevant diagnostic output.
+- [ ] Produce a review artifact only when every mandatory check passes.
+- [ ] Use `review_ready` rather than “done” while human review is outstanding.
+- [ ] Treat missing, incomplete, contradictory, or stale evidence as a failed
+      verification state.
+- [ ] Ensure the verifier cannot modify the candidate it evaluates.
 
-      Any stage may transition to `rejected` or `needs_attention`.
-- [ ] Run project checks independently after the agent exits. The model may
-      suggest or run tests, but its report is not verification evidence.
-- [ ] Run verification against the exact candidate commit in a clean,
-      project-specific environment with no agent session state.
-- [ ] Define allowlisted verification commands in the server-owned project
-      policy. The client and agent cannot change them.
-- [ ] Store structured evidence: candidate commit, command, environment/image
-      version, start/end times, exit status, relevant output, produced files,
-      policy results, and verifier version.
-- [ ] Require all mandatory checks to pass before artifact building. Use the
-      literal state `review_ready`, not “done” or “successful,” while human
-      review remains outstanding.
-- [ ] Freeze the chat as `needs_attention` after every timeout, abnormal exit,
-      gateway exception, dirty tree, metadata mutation, commit uncertainty,
-      verifier crash, or publication failure.
-- [ ] Never silently reset, delete, retry, or continue from an uncertain
-      workspace. A maintainer must inspect and explicitly resume or abandon it.
+## P0 — make the review artifact the primary output
 
-## P0 — make the review artifact the core output
+### Artifact requirements
 
-### Artifact package
+- [ ] Define a versioned `ReviewArtifact` with:
+      - a stable artifact and revision identifier;
+      - the specialized agent and project identity;
+      - the originating request and candidate version;
+      - a parent artifact identifier for revisions;
+      - an immutable content hash;
+      - a human-readable preview or downloadable result;
+      - a concise description of what changed;
+      - verification status and supporting evidence;
+      - known limitations, assumptions, and unresolved decisions;
+      - creator, timestamps, classification, and retention metadata.
+- [ ] Make every artifact immutable. A revision creates a new linked version.
+- [ ] Ensure the artifact can be reviewed without access to development tools.
+- [ ] Present domain-relevant output first; keep technical evidence available
+      separately for maintainers.
+- [ ] Bind the review location to one exact artifact version.
+- [ ] Prevent incomplete, stale, substituted, or unverified content from being
+      presented as the current artifact.
+- [ ] Enforce allowed artifact types, formats, sizes, and content policies.
+- [ ] Validate that artifact inputs and outputs remain within approved
+      boundaries throughout collection, transformation, storage, and delivery.
 
-- [ ] Define a versioned `ReviewArtifact` record with at least:
-      - artifact and revision IDs;
-      - project-agent ID and chat/job IDs;
-      - parent artifact ID for revisions;
-      - candidate commit and base commit;
-      - immutable content hash;
-      - human-readable preview or downloadable file;
-      - concise change summary and affected areas;
-      - verification status and evidence link;
-      - known limitations and maintainer actions;
-      - creator, timestamps, data classification, and retention policy.
-- [ ] Keep every artifact immutable. A revision creates version 2 linked to
-      version 1; it never replaces version 1 in place.
-- [ ] Make the artifact usable without Git knowledge. The user should see the
-      changed report/dashboard/document, what changed, what was checked, and
-      what still requires judgment.
-- [ ] Include a technical diff and command log for the maintainer, but do not
-      force the client reviewer to understand them.
-- [ ] Ensure the preview URL resolves to the exact immutable artifact version,
-      not a mutable directory that later revisions overwrite.
-- [ ] Record artifact access and review actions without recording secrets or
-      unnecessary sensitive content.
+### Supported review actions
 
-### Review actions
+- [ ] Provide three explicit user actions:
+      - **Accept for maintainer review**;
+      - **Request revision**;
+      - **Reject or abandon**.
+- [ ] Attach every review action and comment to the exact artifact version the
+      user saw.
+- [ ] On a revision request, summarize the requested differences before work
+      resumes.
+- [ ] Create a new candidate, new verification record, and new artifact for
+      every revision.
+- [ ] Let the user compare the new artifact with the immediately preceding
+      version.
+- [ ] Allow a user to leave and later resume the pending review without
+      restarting completed work.
+- [ ] Preserve rejected and superseded artifacts for audit according to policy.
 
-- [ ] Provide exactly three client review actions:
-      - **Accept for maintainer review** — the artifact meets the client's need;
-      - **Request revision** — provide feedback tied to this artifact version;
-      - **Reject / abandon** — preserve the record but stop work.
-- [ ] Treat free-text feedback as a new bounded job in the same chat and
-      workspace, based on the exact reviewed commit and artifact version.
-- [ ] Show the agent the review feedback and relevant prior artifact summary,
-      not unrelated chats or another project's history.
-- [ ] Re-run the full independent verification and artifact build after every
-      revision. Prior verification does not carry forward.
-- [ ] Present a clear version history so the client can compare the current
-      artifact with the immediately preceding one.
-- [ ] Let the client return from a dropped session and resume the pending review
-      without restarting the coding job.
-- [ ] Do not allow new editing while an artifact is being reviewed unless the
-      reviewer explicitly requests a revision; this prevents competing states.
+### Maintainer handoff
 
-### Acceptance and maintainer handoff
+- [ ] User acceptance changes the state to `accepted`; it does not authorize
+      integration, release, or deployment.
+- [ ] Generate a maintainer handoff containing the accepted artifact, revision
+      history, candidate changes, verification evidence, unresolved risks, and
+      the user's acceptance identity and timestamp.
+- [ ] Require the maintainer to approve, request revision, or reject.
+- [ ] Keep release and production actions outside the client-agent workflow.
+- [ ] If downstream release automation is introduced, require a separate,
+      authenticated maintainer action against the accepted candidate version.
 
-- [ ] Client acceptance moves the item to `accepted_by_client`; it does not
-      merge code, push a branch, or deploy anything.
-- [ ] Generate a maintainer handoff containing the accepted artifact, complete
-      revision lineage, final diff, verification evidence, commits, unresolved
-      risks, and the client's acceptance identity and timestamp.
-- [ ] Require a separate maintainer decision: approve for integration, request
-      another revision, or reject.
-- [ ] Keep production deployment outside the client-agent service. If added
-      later, it must be a separate maintainer-authorized workflow consuming an
-      accepted and reviewed commit.
+## P0 — security requirements
 
-## P1 — define one specialized-agent bundle contract
+### Least privilege and isolation
 
-- [ ] Extract one shared runtime from the duplicated compliance and gambling
-      gateways. Security fixes must land once and apply to every project agent.
-- [ ] Keep deployment instances single-project. A running gateway loads exactly
-      one server-installed manifest and refuses runtime project switching.
-- [ ] Define a versioned, validated project manifest containing:
-      - stable project-agent ID, name, purpose, owner, and intended reviewers;
-      - fixed repository source and base branch;
-      - branch naming and workspace retention;
-      - readable, editable, generated, protected, and forbidden paths;
-      - allowed tools and commands;
-      - independent verification checks;
-      - artifact builder and allowed outputs;
-      - data classification and permitted summaries;
-      - review roles, stop rules, and escalation owner;
-      - resource limits and retention periods.
-- [ ] Fail startup if the manifest is missing, invalid, unsigned/unapproved, or
-      asks for capabilities the runtime policy does not support.
-- [ ] Keep the project skill separate from the enforcement manifest. The skill
-      explains domain behavior; it cannot grant capabilities.
-- [ ] Version the runtime, manifest, skill, verifier, and artifact builder in
-      every job and artifact record.
-- [ ] Put project-specific preview logic behind a narrow plugin contract rather
-      than conditionals or copied gateway code.
+- [ ] Run each specialized agent in an isolated workspace with access only to
+      its approved project resources.
+- [ ] Separate agent execution, verification, artifact construction, artifact
+      delivery, and final approval into distinct trust roles.
+- [ ] Give each role only the data and operations required for its stage.
+- [ ] Deny access to unrelated projects, administrative interfaces, production
+      systems, and credential stores.
+- [ ] Disable outbound communication by default. Permit only explicit,
+      project-specific destinations when unavoidable.
+- [ ] Prevent agent-controlled content or metadata from causing trusted
+      services to execute unintended commands, load unintended resources, or
+      disclose protected information.
+- [ ] Treat all agent-produced paths, files, links, configuration, metadata,
+      and executable content as untrusted.
+- [ ] Use immutable versions and integrity checks when passing work between
+      trust roles.
 
-### Proposed repository layout
+### Data protection
 
-```text
-runtime/
-  gateway/
-  runners/
-  verifier/
-  artifact_store/
-  security_tests/
-projects/
-  compliance/
-    agent.yaml
-    policy.yaml
-    SKILL.md
-    verifier.yaml
-    artifact_builder/
-  gambling/
-    agent.yaml
-    policy.yaml
-    SKILL.md
-    verifier.yaml
-    artifact_builder/
-deploy/
-  openwebui/
-  systemd-or-container/
-```
+- [ ] Classify project data before granting an agent or artifact process access.
+- [ ] Minimize data exposure and prefer approved summaries, aggregates, or
+      synthetic inputs.
+- [ ] Do not execute agent-authored logic with sensitive data unless a separate,
+      explicitly approved control can prove the output cannot disclose it.
+- [ ] Check artifacts for secrets, personal identifiers, unexpected row-level
+      content, active content, hidden data, and unapproved external references.
+- [ ] Record the data sources, transformations, policy checks, and approvals
+      used to produce every sensitive artifact.
+- [ ] Prevent logs, errors, prompts, histories, and evidence from becoming an
+      uncontrolled copy of protected data.
 
-## P1 — governance model
+### Identity and authorization
 
-### Roles and separation of duties
+- [ ] Authenticate services separately from end users.
+- [ ] Derive user identity from verified authentication rather than accepting
+      an untrusted identity assertion.
+- [ ] Bind requests, workspaces, results, artifacts, feedback, and decisions to
+      the authorized user and specialized-agent instance.
+- [ ] Enforce authorization on reads, writes, reviews, revisions, and approvals.
+- [ ] Ensure knowledge of an identifier does not grant access to its resource.
+- [ ] Use short-lived, scoped credentials and support independent revocation for
+      each specialized agent.
+- [ ] Record authorization and policy decisions without exposing credentials.
 
-- [ ] **Client requester/reviewer:** requests changes, reviews artifacts, asks
-      for revisions, and accepts the result for maintainer review.
-- [ ] **Specialized agent:** edits only the fixed project workspace within its
-      policy. It cannot approve itself or expand its own scope.
-- [ ] **Verifier:** independently evaluates the exact candidate commit and
-      cannot modify it.
-- [ ] **Artifact builder:** creates only the allowlisted review output from a
-      verified commit under the project's data policy.
-- [ ] **Maintainer:** reviews code and evidence and alone decides whether the
-      change may enter the project.
-- [ ] **Operator/security owner:** installs manifests, manages identities and
-      secrets, reviews incidents, and changes runtime policy.
+### Resource and abuse controls
 
-### Policy rules
+- [ ] Limit request size, history size, concurrent and queued work, execution
+      time, compute, memory, storage, files changed, artifact size, revisions,
+      and workspace lifetime.
+- [ ] Rate-limit authentication failures, submissions, status reads, artifact
+      access, and revision requests.
+- [ ] Reject direct and nested attempts to override protected configuration.
+- [ ] Pin trusted runtime components and test upgrades before rollout.
+- [ ] Provide a project-level emergency stop that preserves evidence and does
+      not affect unrelated specialized agents.
 
-- [ ] Capabilities are denied unless explicitly granted in the installed
-      project policy.
-- [ ] Prompt text, skills, repository files, tool output, and review feedback
-      are all untrusted inputs and cannot modify policy.
-- [ ] A skill or repository instruction may further restrict behavior but may
-      never widen the runtime's capabilities.
-- [ ] Scope expansion, new data access, new commands, new artifact types, new
-      external services, and production access require an operator-reviewed
-      policy version—not a chat instruction.
-- [ ] Conflicts resolve toward the narrower permission and `needs_attention`.
-- [ ] Every manual override requires an actor, reason, timestamp, affected
-      object, and before/after policy state.
+## P1 — governance
+
+### Roles
+
+- [ ] **Requester/reviewer:** defines the desired outcome, reviews artifacts,
+      requests revisions, and may accept an artifact for maintainer review.
+- [ ] **Specialized agent:** performs bounded work but cannot change its scope,
+      verification rules, or permissions.
+- [ ] **Verifier:** evaluates the candidate independently and cannot approve or
+      modify its own checks.
+- [ ] **Artifact service:** constructs and delivers only approved artifact types
+      from verified candidates.
+- [ ] **Maintainer:** decides whether an accepted result may enter the project.
+- [ ] **Governance owner:** approves contracts, capabilities, data access,
+      retention, exceptions, and incident actions.
+
+### Policy management
+
+- [ ] Deny capabilities unless they are explicitly granted.
+- [ ] Allow project instructions to narrow behavior but never widen enforced
+      capabilities.
+- [ ] Require governance approval for new data access, operations, artifact
+      types, integrations, external services, or release authority.
+- [ ] Resolve policy conflicts toward the narrower permission and a safe stop.
+- [ ] Version and review all policy changes before activation.
+- [ ] Record every exception or manual override with the actor, reason,
+      timestamp, affected object, duration, and before/after policy state.
+- [ ] Periodically revalidate that each capability is still necessary for the
+      agent's specialized purpose.
 
 ### Audit and retention
 
-- [ ] Use append-only audit events for authentication, authorization, job state,
-      commands, commits, verification, artifacts, feedback, acceptance,
+- [ ] Maintain append-only events for authentication, authorization, scope
+      decisions, work, verification, artifacts, feedback, acceptance,
       maintainer decisions, policy changes, and manual recovery.
-- [ ] Link all evidence to immutable IDs and hashes so a handoff can be replayed
-      against the same source and artifact versions.
-- [ ] Redact secrets and minimize personal or client data in prompts, logs,
-      command output, exceptions, and artifacts.
-- [ ] Define project-specific retention for chats, workspaces, artifacts, audit
-      evidence, and rejected/abandoned changes.
-- [ ] Provide explicit archival and deletion procedures. Automatic cleanup must
-      never destroy an unresolved or `needs_attention` workspace.
-- [ ] Back up the audit database and artifact metadata separately from agent
-      credentials and sensitive project data; test restoration.
+- [ ] Link evidence to immutable identities and integrity hashes.
+- [ ] Make every maintainer handoff reproducible from the recorded candidate,
+      policies, verifier, and artifact versions.
+- [ ] Define retention and deletion rules for conversations, workspaces,
+      artifacts, verification evidence, and rejected work.
+- [ ] Never automatically destroy unresolved or uncertain work.
+- [ ] Test backup, recovery, evidence export, and credential revocation.
 
-## P1 — limits and abuse controls
+## P1 — failure and uncertainty handling
 
-- [ ] Enforce limits on message and history bytes, queued jobs per user, total
-      runtime, subprocesses, CPU, memory, disk, files changed, artifact size,
-      revisions per request, and workspace lifetime.
-- [ ] Reject nested or encoded attempts to supply server-owned configuration.
-- [ ] Disable outbound network by default for agent tools, verifier, and
-      artifact builder. Allow only project-specific destinations through an
-      explicit broker when unavoidable.
-- [ ] Pin runner, UI, system dependencies, verifier images, and artifact tools
-      by immutable version or digest and test upgrades before rollout.
-- [ ] Rate-limit authentication failures, job creation, event reads, artifact
-      reads, and revision requests.
-- [ ] Define incident actions: disable one project agent, revoke its service
-      credential, preserve evidence, invalidate review URLs, and block pending
-      handoffs without affecting other projects.
+- [ ] Enter `needs_attention` after an abnormal exit, timeout, integrity
+      failure, uncertain candidate state, verifier failure, artifact failure,
+      authorization anomaly, or policy conflict.
+- [ ] Preserve the candidate and evidence without automatically retrying,
+      resetting, deleting, or continuing.
+- [ ] Require an authorized maintainer to inspect and explicitly resume,
+      abandon, or restart uncertain work.
+- [ ] Clearly distinguish rejected work, technical failure, policy refusal,
+      user abandonment, and maintainer intervention.
+- [ ] Never display a previous artifact as the result of a failed revision.
+- [ ] State uncertainty and missing evidence directly rather than inferring
+      success.
 
-## P2 — user experience for the review-revise loop
+## P2 — review experience
 
-- [ ] Start every specialized agent with its fixed identity, purpose, current
-      review target, and a short statement of what it cannot do.
-- [ ] Ask only questions necessary to produce the project's artifact; do not
-      expose infrastructure choices to the client.
-- [ ] Stream understandable stages: queued, editing, verifying, building
-      artifact, ready for review. Keep raw tool chatter in maintainer evidence.
-- [ ] On `review_ready`, lead with the artifact and review actions. Put code
-      details after the client-facing result.
-- [ ] When revision is requested, acknowledge the exact artifact version and
-      summarize the requested differences before editing.
-- [ ] For every new artifact version, show what changed since the version the
-      user reviewed, verification results, and any remaining limitation.
-- [ ] Make rejected, failed, and `needs_attention` states honest and actionable;
-      never display a stale preview as the new result.
-- [ ] Test the workflow with keyboard-only navigation, mobile review, dropped
-      connections, expired sessions, long-running jobs, and return visits.
+- [ ] Introduce each agent with its fixed purpose, available artifact, and main
+      limitations.
+- [ ] Ask only questions required to produce the specialized artifact.
+- [ ] Show understandable stages: scoping, working, verifying, preparing the
+      artifact, and ready for review.
+- [ ] Keep raw technical activity out of the primary user view while retaining
+      it as evidence.
+- [ ] Lead every `review_ready` response with the artifact and review actions.
+- [ ] For revisions, show what changed since the reviewed version, the new
+      verification result, and any remaining limitations.
+- [ ] Make expired sessions, dropped connections, long-running work, failures,
+      and return visits recoverable without hiding the actual state.
+- [ ] Validate the review workflow across the devices and accessibility modes
+      used by intended reviewers.
 
-## P2 — validation and product-discovery gates
+## P2 — framework validation
 
-- [ ] Split tests into portable unit tests, isolated integration tests,
-      adversarial security tests, artifact golden tests, and host/deployment
-      attestation. Run portable and adversarial suites in CI.
-- [ ] Add end-to-end tests for request -> verified artifact -> revision -> new
-      verified artifact -> client acceptance -> maintainer handoff.
-- [ ] Add tests proving that artifact version 1 remains available and unchanged
-      after version 2 is produced.
-- [ ] Add tests proving that no unverified commit can produce a review artifact
-      and no client acceptance can trigger integration or deployment.
-- [ ] Convert compliance and gambling to the shared runtime without weakening
-      either project's policy.
-- [ ] Onboard a third, materially different project using only a manifest,
-      skill, verifier, and artifact builder. Target less than one working day
-      and no runtime source edits.
-- [ ] Pilot 20–30 real requests with 3–5 authorized client reviewers. Measure:
-      - percentage reaching a verified review artifact;
-      - artifact revisions per accepted request;
-      - client time to review;
-      - maintainer review time;
-      - verification and policy failures;
-      - unsafe or out-of-scope attempts;
-      - abandoned requests and reasons.
-- [ ] Decide whether to continue product development from demonstrated review
-      value and reduced maintainer burden—not from the number of agent features.
+- [ ] Maintain portable unit tests, isolated integration tests, adversarial
+      security tests, artifact reference tests, and deployment attestations.
+- [ ] Test the complete request -> verification -> artifact -> revision -> new
+      artifact -> acceptance -> maintainer-decision lifecycle.
+- [ ] Prove that every prior artifact remains unchanged after later revisions.
+- [ ] Prove that an unverified candidate cannot produce a review artifact.
+- [ ] Prove that user acceptance cannot trigger integration or deployment.
+- [ ] Prove that users and agents cannot cross project or identity boundaries.
+- [ ] Validate the framework with multiple materially different specialized
+      projects without adding user-controlled generality.
+- [ ] Measure artifact completion, revision frequency, user review time,
+      maintainer review time, verification failures, policy refusals, unsafe
+      attempts, and abandonment reasons.
+- [ ] Evaluate the framework by review quality and reduced maintainer burden,
+      not by the number of agent capabilities.
 
 ## Definition of done for the next milestone
 
-- [ ] One shared runtime serves compliance and gambling as two separate,
-      single-project deployments.
-- [ ] Each deployment loads a fixed manifest and project skill; neither the
-      client nor agent can switch projects or widen capabilities.
-- [ ] The Git-hook and artifact-symlink reproductions are blocked by passing
-      adversarial tests.
-- [ ] Untrusted source is never executed with sensitive data access.
-- [ ] The gateway independently verifies the exact candidate commit.
-- [ ] Only verified commits produce immutable review artifacts.
-- [ ] A client can review artifact v1, request a revision, compare and review
-      v2, and accept v2 for maintainer review.
-- [ ] Client acceptance cannot push, merge, or deploy.
-- [ ] Every state transition, artifact version, review action, and maintainer
-      handoff is attributable and auditable.
-- [ ] No unresolved failure is presented as success or automatically erased.
+- [ ] Each deployment is bound to one specialized project and one approved
+      contract.
+- [ ] Neither users nor agents can switch projects or widen capabilities.
+- [ ] Candidate work is independently verified against immutable versions.
+- [ ] Only verified candidates can produce immutable review artifacts.
+- [ ] A user can review artifact v1, request a revision, compare and review v2,
+      and accept v2 for maintainer consideration.
+- [ ] User acceptance cannot integrate, release, or deploy the result.
+- [ ] Every state transition, artifact version, review action, exception, and
+      maintainer decision is attributable and auditable.
+- [ ] Sensitive data cannot be disclosed through agent work, verification,
+      artifact construction, or delivery.
+- [ ] Uncertain work stops safely, remains inspectable, and is never presented
+      as success.
