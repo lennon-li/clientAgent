@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from clientagent.deployment import DeploymentAdapter, DeploymentConfig
 from clientagent.governance import GovernanceError, load_governance, require_startable
 
 TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "specialized-agent-governance.yaml"
@@ -63,3 +64,65 @@ def test_approved_policy_requires_matching_hash(tmp_path):
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     with pytest.raises(GovernanceError, match="hash"):
         require_startable(load_governance(path))
+
+
+def test_deployment_adapter_attaches_policy_identity_to_execution(tmp_path):
+    path = tmp_path / "governance.yaml"
+    _write_policy(path, approved=True)
+    adapter = DeploymentAdapter(
+        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+    )
+
+    with pytest.raises(RuntimeError, match="not passed"):
+        adapter.execute(lambda _: "must-not-run")
+
+    attestation = adapter.start()
+    seen = adapter.execute(lambda identity: identity.as_dict())
+    assert seen["deployment_id"] == "deployment-1"
+    assert seen["project_id"] == "configured"
+    assert seen["policy_hash"] == attestation.policy_hash
+    assert adapter.evidence("startup")["governance"]["policy_hash"] == attestation.policy_hash
+
+
+def test_deployment_adapter_refuses_project_identity_mismatch(tmp_path):
+    path = tmp_path / "governance.yaml"
+    _write_policy(path, approved=True)
+    adapter = DeploymentAdapter(
+        DeploymentConfig(deployment_id="deployment-1", project_id="other", governance_file=path)
+    )
+    with pytest.raises(ValueError, match="project_id"):
+        adapter.start()
+
+
+def test_failed_revalidation_revokes_an_earlier_attestation(tmp_path):
+    path = tmp_path / "governance.yaml"
+    _write_policy(path, approved=True)
+    adapter = DeploymentAdapter(
+        DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+    )
+    adapter.start()
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["metadata"]["enabled"] = False
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    with pytest.raises(GovernanceError, match="enabled"):
+        adapter.start()
+    assert adapter.started is False
+    with pytest.raises(RuntimeError, match="not passed"):
+        adapter.execute(lambda _: "must-not-run")
+
+
+def test_startup_rejects_a_broadened_capability_even_when_approved(tmp_path):
+    path = tmp_path / "governance.yaml"
+    _write_policy(path, approved=True)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["capabilities"]["operations"]["arbitrary_command_execution"] = True
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    policy = load_governance(path)
+    data["approval"]["approved_policy_hash"] = policy.policy_hash
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(GovernanceError, match="arbitrary command"):
+        DeploymentAdapter(
+            DeploymentConfig(deployment_id="deployment-1", project_id="configured", governance_file=path)
+        ).start()

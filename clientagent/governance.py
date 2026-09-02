@@ -134,10 +134,11 @@ def _check_keys(value: Mapping[str, Any], expected: set[str], name: str) -> None
         raise GovernanceError(f"{name} has unsupported fields: {sorted(extra)}")
 
 
-def _text(value: Any, name: str, nullable: bool = False) -> None:
+def _text(value: Any, name: str, nullable: bool = False, *, allow_placeholder: bool = False) -> None:
     if nullable and value is None:
         return
-    if not isinstance(value, str) or not value.strip() or "REPLACE_ME" in value:
+    if (not isinstance(value, str) or not value.strip()
+            or (not allow_placeholder and "REPLACE_ME" in value)):
         raise GovernanceError(f"{name} must be a concrete non-empty string")
 
 
@@ -151,11 +152,14 @@ def _list_of_strings(value: Any, name: str) -> None:
         raise GovernanceError(f"{name} must be a list of strings")
 
 
-def _validate(data: dict[str, Any]) -> None:
+def _validate(data: dict[str, Any], *, allow_placeholders: bool = False) -> None:
+    def text(value: Any, name: str, nullable: bool = False) -> None:
+        _text(value, name, nullable=nullable, allow_placeholder=allow_placeholders)
+
     _check_keys(data, _ROOT_KEYS, "governance document")
     if data["schema"] != SCHEMA:
         raise GovernanceError(f"schema must be {SCHEMA!r}")
-    _text(data["template_version"], "template_version")
+    text(data["template_version"], "template_version")
 
     for section, expected in _SECTION_KEYS.items():
         _check_keys(_mapping(data[section], section), expected, section)
@@ -163,25 +167,25 @@ def _validate(data: dict[str, Any]) -> None:
     metadata = data["metadata"]
     for field in ("agent_id", "display_name", "project_id", "contract_version", "developer",
                   "project_owner", "governance_owner", "description"):
-        _text(metadata[field], f"metadata.{field}")
+        text(metadata[field], f"metadata.{field}")
     if metadata["status"] not in _STATUSES:
         raise GovernanceError(f"metadata.status must be one of {sorted(_STATUSES)}")
     _boolean(metadata["enabled"], "metadata.enabled")
     for field in ("approved_by", "approved_at", "review_due_at"):
-        _text(metadata[field], f"metadata.{field}", nullable=True)
+        text(metadata[field], f"metadata.{field}", nullable=True)
 
     setup = data["setup_record"]
-    _text(setup["created_by_role"], "setup_record.created_by_role")
-    _text(setup["setup_session_id"], "setup_record.setup_session_id", nullable=True)
-    _text(setup["questionnaire_version"], "setup_record.questionnaire_version")
+    text(setup["created_by_role"], "setup_record.created_by_role")
+    text(setup["setup_session_id"], "setup_record.setup_session_id", nullable=True)
+    text(setup["questionnaire_version"], "setup_record.questionnaire_version")
     for field in ("generated_at", "confirmed_by_developer_at"):
-        _text(setup[field], f"setup_record.{field}", nullable=True)
+        text(setup[field], f"setup_record.{field}", nullable=True)
     _boolean(setup["responses_complete"], "setup_record.responses_complete")
     _list_of_strings(setup["unresolved_questions"], "setup_record.unresolved_questions")
 
     specialization = data["specialization"]
-    _text(specialization["purpose"], "specialization.purpose")
-    _text(specialization["escalation_owner"], "specialization.escalation_owner")
+    text(specialization["purpose"], "specialization.purpose")
+    text(specialization["escalation_owner"], "specialization.escalation_owner")
     for field in ("intended_users", "supported_requests", "out_of_scope_requests",
                   "expected_artifacts", "escalation_conditions"):
         _list_of_strings(specialization[field], f"specialization.{field}")
@@ -192,7 +196,7 @@ def _validate(data: dict[str, Any]) -> None:
 
     adapter = data["execution_adapter"]
     for field in ("cli_agent", "cli_version", "adapter_id", "adapter_version", "policy_mapping_version"):
-        _text(adapter[field], f"execution_adapter.{field}")
+        text(adapter[field], f"execution_adapter.{field}")
     for field in ("startup_attestation_required", "ignore_unapproved_cli_configuration",
                   "effective_capabilities_verified", "refuse_when_policy_cannot_be_enforced"):
         _boolean(adapter[field], f"execution_adapter.{field}")
@@ -202,7 +206,17 @@ def _validate(data: dict[str, Any]) -> None:
     approval = data["approval"]
     for field in ("developer_attestation", "governance_review_complete", "effective_permissions_verified"):
         _boolean(approval[field], f"approval.{field}")
-    _text(approval["approved_policy_hash"], "approval.approved_policy_hash", nullable=True)
+    text(approval["approved_policy_hash"], "approval.approved_policy_hash", nullable=True)
+
+
+def validate_draft(data: Mapping[str, Any]) -> None:
+    """Validate draft structure while allowing explicit unresolved placeholders."""
+    if not isinstance(data, dict):
+        raise GovernanceError("governance document must be a mapping")
+    try:
+        _validate(data, allow_placeholders=True)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise GovernanceError("governance document is structurally incomplete") from exc
 
 
 def _hash(data: Mapping[str, Any]) -> str:
@@ -238,6 +252,12 @@ def require_startable(policy: GovernancePolicy) -> GovernancePolicy:
     setup = policy.raw["setup_record"]
     adapter = policy.raw["execution_adapter"]
     approval = policy.raw["approval"]
+    capabilities = policy.raw["capabilities"]
+    workspace = policy.raw["workspace_policy"]
+    verification = policy.raw["verification"]
+    artifact = policy.raw["artifact_policy"]
+    review = policy.raw["review_policy"]
+    failure = policy.raw["failure_policy"]
     reasons: list[str] = []
     if metadata["status"] != "approved":
         reasons.append("metadata.status is not approved")
@@ -253,6 +273,48 @@ def require_startable(policy: GovernancePolicy) -> GovernancePolicy:
         reasons.append("required controls are unsupported")
     if adapter["effective_capabilities_verified"] is not True:
         reasons.append("effective capabilities are not verified")
+    if adapter["startup_attestation_required"] is not True:
+        reasons.append("startup attestation is disabled")
+    if adapter["ignore_unapproved_cli_configuration"] is not True:
+        reasons.append("unapproved CLI configuration is not ignored")
+    if adapter["refuse_when_policy_cannot_be_enforced"] is not True:
+        reasons.append("unsupported policy enforcement is not refused")
+    if capabilities["resource_access"]["cross_project_access"] is not False:
+        reasons.append("cross-project access is enabled")
+    if capabilities["operations"]["arbitrary_command_execution"] is not False:
+        reasons.append("arbitrary command execution is enabled")
+    if capabilities["tools"]["unlisted_tools_allowed"] is not False:
+        reasons.append("unlisted tools are allowed")
+    if capabilities["network"]["unlisted_destinations_allowed"] is not False:
+        reasons.append("unlisted network destinations are allowed")
+    if capabilities["credentials"]["direct_access_allowed"] is not False:
+        reasons.append("direct credential access is enabled")
+    if capabilities["credentials"]["credential_export_allowed"] is not False:
+        reasons.append("credential export is enabled")
+    for field, label in (
+        ("isolation_required", "workspace isolation"),
+        ("dedicated_to_agent_and_project", "dedicated workspace"),
+        ("preserve_on_uncertainty", "uncertainty preservation"),
+        ("integrity_check_before_trusted_action", "trusted-action integrity checks"),
+    ):
+        if workspace[field] is not True:
+            reasons.append(f"{label} is disabled")
+    if workspace["automatic_destructive_cleanup"] is not False:
+        reasons.append("automatic destructive cleanup is enabled")
+    if verification["required"] is not True or verification["independent_from_agent"] is not True:
+        reasons.append("independent verification is not required")
+    if verification["agent_self_report_is_evidence"] is not False:
+        reasons.append("agent self-report is accepted as evidence")
+    if artifact["immutable_versions"] is not True or artifact["content_hash_required"] is not True:
+        reasons.append("immutable content hashing is not required")
+    if review["required"] is not True or review["user_acceptance_authorizes_integration"] is not False:
+        reasons.append("review or integration separation is disabled")
+    if review["user_acceptance_authorizes_release"] is not False or review["user_acceptance_authorizes_deployment"] is not False:
+        reasons.append("user acceptance can authorize release or deployment")
+    if failure["fail_closed"] is not True or failure["automatic_retry_allowed"] is not False:
+        reasons.append("fail-closed or retry policy is unsafe")
+    if failure["automatic_reset_allowed"] is not False or failure["automatic_evidence_deletion_allowed"] is not False:
+        reasons.append("automatic reset or evidence deletion is enabled")
     if approval["approved_policy_hash"] != policy.policy_hash:
         reasons.append("approved policy hash does not match document")
     if reasons:

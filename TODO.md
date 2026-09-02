@@ -133,8 +133,8 @@ Each agent must have a versioned, system-controlled contract.
       limits, retention rules, and escalation conditions.
 - [ ] Define the user decisions supported by the review workflow.
 - [ ] Define the maintainer or governance role responsible for final approval.
-- [ ] Validate the contract before startup and fail closed if it is missing,
-      invalid, unapproved, or requests unsupported capabilities.
+- [x] Validate the contract before execution startup and fail closed if it is
+      missing, invalid, unapproved, or requests unsupported capabilities.
 - [ ] Record the contract version with every request, result, artifact, review,
       and approval decision.
 - [ ] Never allow conversation content, project content, tool output, or an
@@ -156,8 +156,8 @@ documentation.
 - [ ] Reject ambiguous, conflicting, incomplete, or overly broad declarations.
 - [ ] Default every capability to denied and every resource budget to zero until
       the developer supplies an approved value.
-- [ ] Validate the template against a versioned schema before the agent can be
-      enabled.
+- [x] Validate the template against a versioned schema before the agent can be
+      enabled through the deployment adapter.
 - [ ] Require named developer, project owner, governance owner, approver,
       approval time, contract version, and review or expiry date.
 - [ ] Record the exact governance-template version and integrity hash with every
@@ -186,15 +186,14 @@ so every specialized bundle is configured through the same explicit decisions.
       revision, storage, file-change, and artifact-size limits.
 - [ ] Provide a safe recommended choice where useful, but clearly distinguish a
       recommendation from a confirmed answer.
-- [ ] Never infer or silently broaden permissions from the project description.
+- [x] Never infer or silently broaden permissions from the project description.
       Unanswered or uncertain permissions remain denied.
-- [ ] Allow the setup agent to write only a `draft`, disabled configuration. It
+- [x] Allow the setup agent to write only a `draft`, disabled configuration. It
       cannot approve the policy, mark effective permissions verified, or enable
       the working agent.
-- [ ] Validate the draft continuously and identify conflicts, missing required
-      answers, unenforceable rules, and capabilities requiring external
-      controls.
-- [ ] End with an effective-policy summary in plain language: what the agent can
+- [x] Validate the draft continuously and identify missing required answers.
+      Conflict and unenforceable-control detection remain adapter work.
+- [x] End with an effective-policy summary in plain language: what the agent can
       access, change, call, produce, disclose, approve, and never do.
 - [ ] Show the complete configuration diff and risk summary before asking the
       developer and governance owner for approval.
