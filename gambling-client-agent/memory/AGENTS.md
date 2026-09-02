@@ -13,3 +13,7 @@ alone commits local changes and, for an explicit `/preview` request, may render
 and publish only the four allowlisted HTML files to the fixed non-production
 target using gateway-owned read-only data mounts. Never push,
 merge, create PRs, use `sudo`, or deploy production.
+
+Shell commands run in the Copilot command sandbox with outbound and
+local-network access disabled. File access is limited to the gateway-created
+project worktree and service-provided read-only project memory/toolchain paths.

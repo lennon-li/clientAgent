@@ -242,6 +242,20 @@ def test_argv_does_not_unshare_the_network(tmp_path):
     assert "--unshare-net" not in build_bwrap_argv(spec)
 
 
+def test_copilot_settings_are_read_only_over_the_writable_home(tmp_path):
+    settings = tmp_path / "copilot-settings.json"
+    settings.write_text('{"sandbox":{"enabled":true}}', encoding="utf-8")
+    spec = JailSpec(
+        worktree=tmp_path / "wt",
+        codex_home=tmp_path / "ch",
+        settings_src=settings,
+    )
+    argv = build_bwrap_argv(spec)
+    bind = ["--ro-bind", str(settings), str(spec.codex_home / "settings.json")]
+    start = argv.index("--ro-bind", argv.index("--bind"))
+    assert bind == argv[start:start + 3]
+
+
 def test_assert_jail_safe_rejects_a_weakened_jail():
     with pytest.raises(ValueError, match="unshare-user"):
         assert_jail_safe(["/usr/bin/bwrap", "--unshare-pid", "--die-with-parent",

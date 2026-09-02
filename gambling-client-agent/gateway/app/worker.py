@@ -312,6 +312,11 @@ class Worker:
             jail_spec = JailSpec(
                 worktree=worktree,
                 codex_home=self.cfg.codex.codex_home,
+                settings_src=(
+                    self.cfg.codex.codex_home.parent.parent
+                    / "gateway/copilot-settings.json"
+                    if self.cfg.codex.provider == "copilot" else None
+                ),
                 # The credential is bound READ-ONLY on top of the writable
                 # CODEX_HOME, so the agent cannot overwrite or delete it.
                 auth_src=(

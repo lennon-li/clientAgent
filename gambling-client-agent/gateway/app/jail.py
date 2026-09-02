@@ -23,8 +23,9 @@ There are two sandboxes, doing different jobs, and neither replaces the other:
 
   OUTER (bubblewrap)   filesystem containment + privilege containment.
                        Deliberately does NOT unshare the network.
-  INNER (codex)        `workspace-write` + `network_access = false`, which
-                       denies network to the shell commands the AGENT spawns.
+  INNER (provider)     Codex `workspace-write` or Copilot command sandbox,
+                       both configured to deny network to shell commands the
+                       AGENT spawns.
 
 The outer jail keeps the network because Codex itself must reach the API --
 `--unshare-net` breaks it outright. So the codex process has network egress,
@@ -74,6 +75,7 @@ class JailSpec:
     #: clone is never written during a job and is not bound into the jail.
     repo_git: Path | None = None
     auth_src: Path | None = None
+    settings_src: Path | None = None
     extra_ro: tuple[Path, ...] = field(default_factory=tuple)
     #: Environment set INSIDE the jail, for every process in it. Needed for the
     #: R toolchain: HOME is a throwaway tmpfs, so R would otherwise not find the
@@ -160,6 +162,14 @@ def build_bwrap_argv(spec: JailSpec) -> list[str]:
     # Writable working set.
     for path in spec.writable():
         argv += ["--bind", str(path), str(path)]
+
+    # The Copilot settings, read-only, mounted ON TOP OF the writable
+    # CODEX_HOME so the client agent cannot disable its command sandbox.
+    if spec.settings_src and Path(spec.settings_src).is_file():
+        argv += [
+            "--ro-bind", str(spec.settings_src),
+            str(spec.codex_home / "settings.json"),
+        ]
 
     # The Codex credential, read-only, mounted ON TOP of the writable
     # CODEX_HOME so the agent cannot overwrite or delete it.

@@ -17,6 +17,7 @@ def test_argv_uses_noninteractive_json_session_mode():
     assert argv[argv.index("--output-format") + 1] == "json"
     assert argv[argv.index("-C") + 1] == "/wt"
     assert argv[argv.index("--prompt") + 1] == "inspect the package"
+    assert "--experimental" in argv
     assert "--allow-all-tools" in argv
     for banned in cr.BANNED_ARGS:
         assert banned not in argv

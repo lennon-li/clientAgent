@@ -6,8 +6,10 @@ session-event schema.  This module keeps that provider-specific behaviour out
 of the gateway worker while preserving the worker's small result contract.
 
 The outer bubblewrap jail remains the authoritative filesystem and privilege
-boundary.  The Copilot CLI's automatic permissions are enabled only for the
-jailed process; no path-widening or URL-widening flags are permitted here.
+boundary. Copilot's experimental command sandbox is also enabled for the
+jailed process so its shell commands have no outbound or local-network access;
+the Copilot API connection itself remains available outside those child
+command sandboxes. No path-widening or URL-widening flags are permitted here.
 """
 
 from __future__ import annotations
@@ -62,6 +64,7 @@ def build_argv(
         "--no-custom-instructions",
         "--no-remote",
         "--no-remote-export",
+        "--experimental",
         "--no-color",
         "--silent",
         "--output-format",
@@ -69,8 +72,10 @@ def build_argv(
         "--no-ask-user",
         "--disable-builtin-mcps",
         # Non-interactive mode must be able to execute the normal coding tools.
-        # The jail limits what those tools can reach.  Explicit deny rules keep
-        # the two most important publication/escalation commands blocked too.
+        # Copilot's command sandbox limits their filesystem/network reach, and
+        # the outer jail limits the process even if a tool bypass is attempted.
+        # Explicit deny rules keep the two most important publication/
+        # escalation commands blocked too.
         "--allow-all-tools",
         "--deny-tool",
         "shell(git push)",
