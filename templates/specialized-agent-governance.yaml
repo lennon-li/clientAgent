@@ -27,6 +27,15 @@ metadata:
   review_due_at: null
   description: "REPLACE_ME"
 
+setup_record:
+  created_by_role: "setup_agent"
+  setup_session_id: null
+  questionnaire_version: "1.0"
+  generated_at: null
+  confirmed_by_developer_at: null
+  responses_complete: false
+  unresolved_questions: []
+
 specialization:
   purpose: "REPLACE_ME"
   intended_users: []
@@ -50,6 +59,22 @@ models:
   fallback_allowed: false
   fallback_models: []
   model_switch_requires_approval: true
+
+# CLI agents have different and changing permission models. The runtime must
+# use an adapter that maps every required policy rule to a verified native or
+# external control. Instructions alone are not enforcement.
+execution_adapter:
+  cli_agent: "REPLACE_ME"
+  cli_version: "REPLACE_ME"
+  adapter_id: "REPLACE_ME"
+  adapter_version: "REPLACE_ME"
+  policy_mapping_version: "REPLACE_ME"
+  startup_attestation_required: true
+  ignore_unapproved_cli_configuration: true
+  unsupported_required_controls: []
+  external_controls_required: []
+  effective_capabilities_verified: false
+  refuse_when_policy_cannot_be_enforced: true
 
 token_and_cost_budgets:
   # All limits are hard. Zero means the agent cannot run until configured.
