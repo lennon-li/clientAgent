@@ -1,39 +1,28 @@
-# Client Agent Services
+# clientAgent
 
-Private, sanitized source of truth for the Open WebUI client agents hosted on
-Asgard:
+`clientAgent` is a framework for deploying governed, project-specific AI
+agents. It turns a request into bounded candidate work, independent evidence,
+and an immutable artifact for human review.
 
-- `compliance-client-agent/` — Jer, for the compliance R/Shiny project.
-- `gambling-client-agent/` — Gamble, for the gambling dashboards.
+The framework is artifact-centered, not a general coding-agent or autonomous
+deployment system. Each deployment is bound to one approved project contract;
+users and agents cannot select projects, widen permissions, integrate changes,
+release, or deploy.
 
-Each service contains its gateway, Open WebUI Pipe, installer, service unit,
-service-local memory, tests, and non-secret configuration templates. Runtime
-state remains under `/home/yeli/services/<service>` and is deliberately not
-versioned.
+## Repository layout
 
-## Security boundary
+- `templates/` — governance contract and setup-agent questionnaire.
+- `TODO.md` — product definition, requirements, and milestone backlog.
+- `clientagent/` — framework runtime modules (under construction).
+- `tests/` — portable framework tests.
 
-Client agents work only in gateway-created `client/<project>/*` workspaces.
-They cannot select `main`, another repository, credentials, sandbox settings,
-or deployment targets. They cannot push, use `sudo`, or deploy production.
-An explicit `/preview` request lets the trusted gateway update only the fixed,
-allowlisted test target.
+## Core lifecycle
 
-Direct maintainer agents are launched separately in the project checkout on
-`main`; client chat text cannot select or inherit that role.
+```text
+request -> bounded work -> independent verification -> review artifact
+        -> user feedback -> revised artifact -> user acceptance
+        -> separate maintainer decision
+```
 
-## Recovery
-
-1. Copy the selected service directory to
-   `/home/yeli/services/<service-name>`.
-2. Create `.env` from `.env.example` and supply secrets and the permitted Open
-   WebUI user ID locally.
-3. Bootstrap the service-owned repository using `scripts/bootstrap_repo.sh`.
-4. Restore the provider login into the service-owned state directory.
-5. Install/start the user service, load the local `.env`, and run
-   `scripts/install_openwebui_pipe.py` so the permitted user ID is explicit.
-6. Run the full gateway test suite and verify the health and preview URLs.
-
-Do not restore databases, worktrees, credentials, or client activity from this
-repository. Back those up separately only when explicitly required and under
-their own access controls.
+Configuration, policy, credentials, authorization, sensitive resources, and
+release destinations remain outside user and agent control.
