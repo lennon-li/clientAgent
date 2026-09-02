@@ -1,0 +1,241 @@
+# Specialized Agent Governance Template
+#
+# Copy this file into a Specialized Agent Bundle and complete every required
+# field. The runtime must validate it against a versioned schema and enforce the
+# structured controls. Comments and plain-language declarations may restrict
+# behavior but may never expand a structured permission.
+#
+# Safe defaults are intentional: the agent is disabled, capabilities are
+# denied, and resource budgets are zero until explicitly configured and
+# approved.
+
+schema: "clientagent-governance/v1"
+template_version: "1.0"
+
+metadata:
+  agent_id: "REPLACE_ME"
+  display_name: "REPLACE_ME"
+  project_id: "REPLACE_ME"
+  contract_version: "0.1.0"
+  status: "draft" # draft | approved | suspended | retired
+  enabled: false
+  developer: "REPLACE_ME"
+  project_owner: "REPLACE_ME"
+  governance_owner: "REPLACE_ME"
+  approved_by: null
+  approved_at: null
+  review_due_at: null
+  description: "REPLACE_ME"
+
+specialization:
+  purpose: "REPLACE_ME"
+  intended_users: []
+  supported_requests: []
+  out_of_scope_requests: []
+  expected_artifacts: []
+  escalation_owner: "REPLACE_ME"
+  escalation_conditions: []
+
+# The developer must provide an understandable declaration for reviewers. The
+# structured sections below remain authoritative and may only be narrower.
+developer_declaration:
+  agent_may: []
+  agent_must: []
+  agent_must_not: []
+  agent_must_escalate_when: []
+
+models:
+  allowed: []
+  default: null
+  fallback_allowed: false
+  fallback_models: []
+  model_switch_requires_approval: true
+
+token_and_cost_budgets:
+  # All limits are hard. Zero means the agent cannot run until configured.
+  max_input_tokens_per_call: 0
+  max_output_tokens_per_call: 0
+  max_turns_per_job: 0
+  max_total_tokens_per_job: 0
+  max_total_tokens_per_revision: 0
+  max_total_tokens_per_review_cycle: 0
+  max_cost_per_job: 0
+  max_cost_per_review_cycle: 0
+  currency: "USD"
+  preflight_check_required: true
+  stop_on_limit: true
+  allow_runtime_increase: false
+  usage_evidence_required: true
+
+context_policy:
+  allowed_sources: []
+  prohibited_sources: []
+  max_system_instruction_tokens: 0
+  max_conversation_history_tokens: 0
+  max_project_context_tokens: 0
+  max_retrieved_context_tokens: 0
+  max_tool_result_tokens: 0
+  history_strategy: "none" # none | retain | summarize | retrieve
+  preserve_review_feedback: true
+  preserve_artifact_lineage: true
+  cross_project_context_allowed: false
+
+workload_limits:
+  max_wall_time_seconds_per_job: 0
+  max_tool_calls_per_job: 0
+  max_retries_per_step: 0
+  max_concurrent_jobs_per_user: 0
+  max_queued_jobs_per_user: 0
+  max_revisions_per_request: 0
+  max_workspace_bytes: 0
+  max_files_changed: 0
+  max_artifact_bytes: 0
+
+capabilities:
+  resource_access:
+    readable: []
+    writable: []
+    prohibited: []
+    cross_project_access: false
+
+  operations:
+    allowed_action_ids: []
+    prohibited_action_ids:
+      - "modify_governance_policy"
+      - "access_credentials"
+      - "approve_own_work"
+      - "impersonate_user"
+      - "integrate_without_approval"
+      - "release_without_approval"
+      - "deploy_without_approval"
+    arbitrary_command_execution: false
+
+  tools:
+    allowed_tool_ids: []
+    prohibited_tool_ids: []
+    unlisted_tools_allowed: false
+    tool_arguments_must_be_validated: true
+
+  network:
+    enabled: false
+    allowed_destinations: []
+    allowed_methods: []
+    unlisted_destinations_allowed: false
+
+  data:
+    maximum_classification: "public"
+    allowed_sources: []
+    prohibited_sources: []
+    row_level_access: false
+    export_allowed: false
+    approved_transformations: []
+
+  credentials:
+    direct_access_allowed: false
+    brokered_credential_ids: []
+    credential_export_allowed: false
+
+workspace_policy:
+  isolation_required: true
+  dedicated_to_agent_and_project: true
+  reuse_across_users: false
+  preserve_on_uncertainty: true
+  automatic_destructive_cleanup: false
+  integrity_check_before_trusted_action: true
+
+verification:
+  required: true
+  independent_from_agent: true
+  verifies_immutable_candidate: true
+  mandatory_check_ids: []
+  optional_check_ids: []
+  acceptance_rule: "all_mandatory_checks_pass"
+  agent_self_report_is_evidence: false
+  evidence_required: true
+  artifact_requires_verification: true
+
+artifact_policy:
+  builder_id: "REPLACE_ME"
+  allowed_types: []
+  allowed_formats: []
+  prohibited_content: []
+  immutable_versions: true
+  content_hash_required: true
+  parent_revision_link_required: true
+  active_content_allowed: false
+  sensitive_data_allowed: false
+  content_inspection_required: true
+  compare_with_previous_revision: true
+
+review_policy:
+  required: true
+  allowed_reviewer_roles:
+    - "requester_reviewer"
+  allowed_actions:
+    - "accept_for_maintainer_review"
+    - "request_revision"
+    - "reject_or_abandon"
+  feedback_bound_to_artifact_version: true
+  revision_requires_new_verification: true
+  revision_requires_new_artifact: true
+  user_acceptance_authorizes_integration: false
+  user_acceptance_authorizes_release: false
+  user_acceptance_authorizes_deployment: false
+
+approval_gates:
+  scope_change: "governance_owner"
+  new_capability: "governance_owner"
+  budget_change: "governance_owner"
+  model_change: "governance_owner"
+  data_access_change: "governance_owner"
+  artifact_policy_change: "governance_owner"
+  integration: "project_owner"
+  release: "project_owner"
+  deployment: "project_owner"
+
+audit_policy:
+  append_only_events: true
+  record_authentication: true
+  record_authorization: true
+  record_scope_decisions: true
+  record_model_and_token_usage: true
+  record_tool_usage: true
+  record_verification: true
+  record_artifact_versions: true
+  record_review_actions: true
+  record_approvals_and_overrides: true
+  redact_credentials: true
+  minimize_sensitive_content: true
+  retention_days: 0
+
+failure_policy:
+  fail_closed: true
+  needs_attention_on:
+    - "abnormal_exit"
+    - "timeout"
+    - "budget_exhausted"
+    - "integrity_failure"
+    - "authorization_anomaly"
+    - "policy_conflict"
+    - "verification_failure"
+    - "artifact_failure"
+    - "uncertain_state"
+  automatic_retry_allowed: false
+  automatic_reset_allowed: false
+  automatic_evidence_deletion_allowed: false
+  resume_requires_maintainer: true
+
+incident_policy:
+  emergency_stop_available: true
+  incident_owner: "REPLACE_ME"
+  preserve_evidence_on_stop: true
+  credential_revocation_supported: true
+  invalidate_artifact_access_supported: true
+
+# Approval is valid only when the runtime confirms that the effective deployed
+# capabilities do not exceed this policy.
+approval:
+  developer_attestation: false
+  governance_review_complete: false
+  effective_permissions_verified: false
+  approved_policy_hash: null
