@@ -195,6 +195,8 @@ so every specialized bundle is configured through the same explicit decisions.
       Conflict and unenforceable-control detection remain adapter work.
 - [x] End with an effective-policy summary in plain language: what the agent can
       access, change, call, produce, disclose, approve, and never do.
+- [x] Report structured scope/model/network conflicts and controls that require
+      external enforcement before approval.
 - [ ] Show the complete configuration diff and risk summary before asking the
       developer and governance owner for approval.
 - [ ] Preserve the setup session ID, questionnaire version, confirmed answers,

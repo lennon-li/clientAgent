@@ -8,7 +8,14 @@ from .governance import (
     validate_draft,
 )
 from .deployment import DeploymentAdapter, DeploymentConfig, PolicyAttestation
-from .setup import SetupDraft, SetupError, create_draft, effective_policy_summary
+from .setup import (
+    SetupDraft,
+    SetupError,
+    SetupFinding,
+    analyze_draft,
+    create_draft,
+    effective_policy_summary,
+)
 
 __all__ = [
     "DeploymentAdapter",
@@ -18,6 +25,8 @@ __all__ = [
     "PolicyAttestation",
     "SetupDraft",
     "SetupError",
+    "SetupFinding",
+    "analyze_draft",
     "create_draft",
     "effective_policy_summary",
     "load_governance",

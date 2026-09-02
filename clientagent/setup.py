@@ -24,10 +24,29 @@ class SetupDraft:
     raw: dict[str, Any]
     draft_hash: str
     unresolved_fields: tuple[str, ...]
+    findings: tuple["SetupFinding", ...] = ()
 
     @property
     def summary(self) -> dict[str, Any]:
-        return effective_policy_summary(self.raw, self.unresolved_fields)
+        return effective_policy_summary(self.raw, self.unresolved_fields, self.findings)
+
+
+@dataclass(frozen=True)
+class SetupFinding:
+    """A semantic setup issue that must be resolved before approval."""
+
+    code: str
+    severity: str
+    message: str
+    fields: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "severity": self.severity,
+            "message": self.message,
+            "fields": list(self.fields),
+        }
 
 
 # These fields are owned by approval/deployment, not by the setup agent.
@@ -156,6 +175,7 @@ def _check_answer(path: str, value: Any, template: Mapping[str, Any]) -> None:
 
 def effective_policy_summary(
     data: Mapping[str, Any], unresolved_fields: tuple[str, ...] | list[str] | None = None,
+    findings: tuple[SetupFinding, ...] | list[SetupFinding] | None = None,
 ) -> dict[str, Any]:
     """Return a plain structured summary without treating prose as permission."""
     capabilities = data["capabilities"]
@@ -171,6 +191,7 @@ def effective_policy_summary(
         "enabled": data["metadata"]["enabled"],
         "agent_id": None if data["metadata"]["agent_id"] == "REPLACE_ME" else data["metadata"]["agent_id"],
         "unresolved_fields": list(unresolved),
+        "findings": [finding.as_dict() for finding in (findings or analyze_draft(data, include_incomplete=False))],
         "access": {
             "read": list(capabilities["resource_access"]["readable"]),
             "write": list(capabilities["resource_access"]["writable"]),
@@ -198,6 +219,120 @@ def effective_policy_summary(
             "execute arbitrary commands",
         ],
     }
+
+
+def analyze_draft(data: Mapping[str, Any], *, include_incomplete: bool = True) -> tuple[SetupFinding, ...]:
+    """Find semantic conflicts and controls requiring an enforcement adapter.
+
+    This analysis never grants a capability. It only reports conditions that
+    keep the already-disabled draft from being considered ready for approval.
+    """
+    try:
+        validate_draft(data)
+    except GovernanceError as exc:
+        raise SetupError(f"cannot analyze invalid draft: {exc}") from exc
+
+    findings: list[SetupFinding] = []
+    if include_incomplete:
+        unresolved = _unresolved_paths(data)
+        if unresolved:
+            findings.append(SetupFinding(
+                "missing_answers",
+                "blocking",
+                f"{len(unresolved)} required or ownership fields remain unresolved.",
+                tuple(unresolved),
+            ))
+
+    specialization = data["specialization"]
+    supported = set(specialization["supported_requests"])
+    out_of_scope = set(specialization["out_of_scope_requests"])
+    if supported & out_of_scope:
+        findings.append(SetupFinding(
+            "scope_conflict",
+            "blocking",
+            "A request is listed as both supported and out of scope.",
+            ("specialization.supported_requests", "specialization.out_of_scope_requests"),
+        ))
+
+    models = data["models"]
+    allowed_models = set(models["allowed"])
+    if models["default"] is not None and models["default"] not in allowed_models:
+        findings.append(SetupFinding(
+            "model_conflict",
+            "blocking",
+            "The default model is not in the approved model list.",
+            ("models.allowed", "models.default"),
+        ))
+    if not models["fallback_allowed"] and models["fallback_models"]:
+        findings.append(SetupFinding(
+            "fallback_conflict",
+            "blocking",
+            "Fallback models are listed while fallback use is disabled.",
+            ("models.fallback_allowed", "models.fallback_models"),
+        ))
+    elif not set(models["fallback_models"]).issubset(allowed_models):
+        findings.append(SetupFinding(
+            "fallback_conflict",
+            "blocking",
+            "A fallback model is not in the approved model list.",
+            ("models.allowed", "models.fallback_models"),
+        ))
+
+    capabilities = data["capabilities"]
+    resources = capabilities["resource_access"]
+    operations = capabilities["operations"]
+    tools = capabilities["tools"]
+    network = capabilities["network"]
+    context = data["context_policy"]
+    overlaps = (
+        (set(resources["readable"]) & set(resources["prohibited"]),
+         "resource_conflict", "A resource is both readable and prohibited.",
+         ("capabilities.resource_access.readable", "capabilities.resource_access.prohibited")),
+        (set(operations["allowed_action_ids"]) & set(operations["prohibited_action_ids"]),
+         "operation_conflict", "An operation is both allowed and prohibited.",
+         ("capabilities.operations.allowed_action_ids", "capabilities.operations.prohibited_action_ids")),
+        (set(tools["allowed_tool_ids"]) & set(tools["prohibited_tool_ids"]),
+         "tool_conflict", "A tool is both allowed and prohibited.",
+         ("capabilities.tools.allowed_tool_ids", "capabilities.tools.prohibited_tool_ids")),
+        (set(context["allowed_sources"]) & set(context["prohibited_sources"]),
+         "context_conflict", "A context source is both allowed and prohibited.",
+         ("context_policy.allowed_sources", "context_policy.prohibited_sources")),
+    )
+    for overlap, code, message, fields in overlaps:
+        if overlap:
+            findings.append(SetupFinding(code, "blocking", message, fields))
+
+    if not network["enabled"] and (network["allowed_destinations"] or network["allowed_methods"]):
+        findings.append(SetupFinding(
+            "network_conflict",
+            "blocking",
+            "Network destinations or methods are configured while network access is disabled.",
+            ("capabilities.network.enabled", "capabilities.network.allowed_destinations", "capabilities.network.allowed_methods"),
+        ))
+    if network["enabled"] and not network["allowed_destinations"]:
+        findings.append(SetupFinding(
+            "network_scope_missing",
+            "blocking",
+            "Network access is enabled without an explicit destination allowlist.",
+            ("capabilities.network.enabled", "capabilities.network.allowed_destinations"),
+        ))
+
+    adapter = data["execution_adapter"]
+    if adapter["unsupported_required_controls"]:
+        findings.append(SetupFinding(
+            "unsupported_control",
+            "blocking",
+            "The selected adapter cannot enforce one or more required controls.",
+            ("execution_adapter.unsupported_required_controls",),
+        ))
+    if adapter["external_controls_required"]:
+        findings.append(SetupFinding(
+            "external_control",
+            "requires_external_enforcement",
+            "One or more controls must be enforced outside the CLI agent before approval.",
+            ("execution_adapter.external_controls_required",),
+        ))
+    return tuple(findings)
 
 
 def create_draft(
@@ -256,6 +391,7 @@ def create_draft(
         validate_draft(draft)
     except GovernanceError as exc:
         raise SetupError(f"draft is invalid after setup answers: {exc}") from exc
+    findings = analyze_draft(draft)
 
     path = Path(output_path)
     try:
@@ -264,7 +400,10 @@ def create_draft(
     except OSError as exc:
         raise SetupError(f"cannot write setup draft: {path}") from exc
     unresolved = tuple(draft["setup_record"]["unresolved_questions"])
-    return SetupDraft(path, draft, _hash(draft), unresolved)
+    return SetupDraft(path, draft, _hash(draft), unresolved, findings)
 
 
-__all__ = ["SetupDraft", "SetupError", "create_draft", "effective_policy_summary"]
+__all__ = [
+    "SetupDraft", "SetupError", "SetupFinding", "analyze_draft", "create_draft",
+    "effective_policy_summary",
+]
