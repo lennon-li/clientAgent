@@ -2,6 +2,10 @@
 
 Last updated: 2026-09-02
 
+## Slogan
+
+> **Don't talk to me yet. Talk to my agent first.**
+
 ## What we are building
 
 `clientAgent` is a framework for deploying **governed, project-specific AI
@@ -11,6 +15,57 @@ control.
 
 It is an **artifact-centered specialized-agent framework**. It is not a general
 coding agent, a chatbot template, or an autonomous deployment system.
+
+Each client-facing agent represents one project. It understands that project's
+purpose, vocabulary, current state, approved workflows, expected artifacts, and
+operating limits. It gives clients a conversational first point of contact
+without giving them direct access to the project's implementation, sensitive
+resources, or privileged operations.
+
+The agent receives a request, determines whether it is within scope, asks only
+the clarification needed for that project, performs bounded work, and returns a
+concrete artifact for review. Depending on the project, the artifact could be a
+document, report, analysis result, dashboard preview, design, configuration, or
+structured change proposal. The artifact—not the agent's claim—is what the user
+reviews.
+
+The user can inspect the artifact, request revisions in ordinary language,
+compare versions, and repeat the loop until the result meets the intended need.
+Every revision remains tied to the request, the exact candidate work, and new
+verification evidence. The agent preserves this context so the user does not
+have to restart the explanation at each turn.
+
+“Talk to my agent first” does not remove the project owner or maintainer. It
+creates a governed first layer between routine client requests and the person
+responsible for the project. The specialized agent handles clarification,
+bounded execution, artifact preparation, and revision tracking. It escalates
+when a request is outside scope, evidence is insufficient, a policy decision is
+needed, or the user has accepted an artifact for maintainer consideration.
+
+This gives the client a faster, more direct way to shape the result while
+protecting the maintainer from premature interruptions and unstructured change
+requests. When human review is needed, the maintainer receives a prepared
+artifact, the revision history, verification evidence, and the decisions that
+remain—not merely a chat transcript.
+
+### Intended client experience
+
+1. Describe the desired outcome to the project's agent.
+2. Answer any project-specific clarification questions.
+3. Receive a verified artifact that can be opened or inspected directly.
+4. Accept it, reject it, or request a revision.
+5. Review each new version with a clear explanation of what changed.
+6. Send the accepted version to the maintainer for a separate technical or
+   governance decision.
+
+### Intended maintainer experience
+
+- Define the agent's project knowledge, scope, permissions, verification, and
+  artifact contract once.
+- Receive only requests that require authority, judgment, or final approval.
+- Review a bounded candidate with its artifact, evidence, and feedback history.
+- Retain control over integration, release, sensitive data access, and changes
+  to the agent's capabilities.
 
 The reusable product unit is a **Specialized Agent Bundle**:
 
