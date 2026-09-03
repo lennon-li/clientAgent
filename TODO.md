@@ -297,25 +297,25 @@ outside the model through a versioned adapter and independent controls.
 
 ## P0 — make verification independent
 
-- [ ] Treat agent output as a candidate requiring verification.
+- [x] Treat agent output as a candidate requiring verification.
 - [ ] Verify the exact candidate version in a clean, controlled environment.
-- [ ] Use predefined checks that neither the user nor agent can alter.
+- [x] Use predefined checks that neither the user nor agent can alter.
 - [ ] Include functional, policy, security, privacy, and artifact-specific
       checks appropriate to the project.
-- [ ] Store structured verification evidence, including the candidate version,
+- [x] Store structured verification evidence, including the candidate version,
       policy version, verifier version, checks performed, outcomes, timestamps,
       and relevant diagnostic output.
-- [ ] Produce a review artifact only when every mandatory check passes.
-- [ ] Use `review_ready` rather than “done” while human review is outstanding.
+- [x] Produce a review artifact only when every mandatory check passes.
+- [x] Use `review_ready` rather than “done” while human review is outstanding.
 - [ ] Treat missing, incomplete, contradictory, or stale evidence as a failed
       verification state.
-- [ ] Ensure the verifier cannot modify the candidate it evaluates.
+- [x] Ensure the verifier cannot modify the candidate it evaluates.
 
 ## P0 — make the review artifact the primary output
 
 ### Artifact requirements
 
-- [ ] Define a versioned `ReviewArtifact` with:
+- [x] Define a versioned `ReviewArtifact` with:
       - a stable artifact and revision identifier;
       - the specialized agent and project identity;
       - the originating request and candidate version;
@@ -326,15 +326,15 @@ outside the model through a versioned adapter and independent controls.
       - verification status and supporting evidence;
       - known limitations, assumptions, and unresolved decisions;
       - creator, timestamps, classification, and retention metadata.
-- [ ] Make every artifact immutable. A revision creates a new linked version.
-- [ ] Ensure the artifact can be reviewed without access to development tools.
+- [x] Make every artifact immutable. A revision creates a new linked version.
+- [x] Ensure the artifact can be reviewed without access to development tools.
 - [ ] Present domain-relevant output first; keep technical evidence available
       separately for maintainers.
-- [ ] Bind the review location to one exact artifact version.
-- [ ] Prevent incomplete, stale, substituted, or unverified content from being
+- [x] Bind the review location to one exact artifact version.
+- [x] Prevent incomplete, stale, substituted, or unverified content from being
       presented as the current artifact.
-- [ ] Enforce allowed artifact types, formats, sizes, and content policies.
-- [ ] Validate that artifact inputs and outputs remain within approved
+- [x] Enforce allowed artifact types, formats, sizes, and content policies.
+- [x] Validate that artifact inputs and outputs remain within approved
       boundaries throughout collection, transformation, storage, and delivery.
 
 ### Supported review actions

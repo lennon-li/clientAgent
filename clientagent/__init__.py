@@ -29,6 +29,14 @@ from .lifecycle import (
     LifecycleState,
     LifecycleTransition,
 )
+from .verification import (
+    CandidateVersion,
+    CheckResult,
+    IndependentVerifier,
+    VerificationError,
+    VerificationEvidence,
+)
+from .artifacts import ArtifactError, ImmutableArtifactBuilder, ReviewArtifact
 
 __all__ = [
     "DeploymentAdapter",
@@ -45,6 +53,14 @@ __all__ = [
     "LifecycleSnapshot",
     "LifecycleState",
     "LifecycleTransition",
+    "ArtifactError",
+    "CandidateVersion",
+    "CheckResult",
+    "ImmutableArtifactBuilder",
+    "IndependentVerifier",
+    "ReviewArtifact",
+    "VerificationError",
+    "VerificationEvidence",
     "SetupDraft",
     "SetupError",
     "SetupFinding",
