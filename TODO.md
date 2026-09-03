@@ -1,6 +1,6 @@
 # clientAgent — Product Definition and TODO
 
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ## Slogan
 
@@ -233,6 +233,35 @@ outside the model through a versioned adapter and independent controls.
       denied behavior against the real supported CLI version.
 - [ ] Re-run adapter certification whenever the CLI agent or runtime version
       changes.
+
+### Route policy and host discovery
+
+- [x] Define a provider-neutral, versioned route-policy projection with
+      canonical ordering and a content digest. A material policy change must
+      change the digest; input ordering must not.
+- [x] Keep host discovery, eligibility, proposal, validation, dispatch, and
+      approval as separate trust stages. No earlier stage may silently perform
+      a later stage's decision.
+- [x] Validate proposed primary, escalation, and validator routes
+      deterministically against the exact policy digest, host-profile digest,
+      approved access-service digest, required capabilities, and approved
+      permission envelope.
+- [x] Require one unambiguous route per role, a distinct escalation profile,
+      and the configured provider/model-family independence for verification.
+- [x] Reject stale policy, unavailable or ineligible profiles, permission
+      widening, profile/proposal substitution, forbidden capability fallback,
+      access-service substitution, and self-validation with closed reason
+      codes.
+- [x] Provide a host-local machine inventory that runs only host-allowlisted
+      exact argv without a shell or ambient credentials, retains bounded
+      normalized metadata rather than raw output, and records freshness and an
+      integrity digest.
+- [ ] Bind the route-policy, profile, inventory, access-service, and coherence
+      digests into every job, verification record, artifact, and maintainer
+      handoff that used them.
+- [ ] Certify host inventory collectors and real route adapters on each
+      intended deployment host; portable unit tests do not prove host
+      containment or provider availability.
 
 ### Token, cost, and workload governance
 

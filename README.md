@@ -12,6 +12,7 @@ release, or deploy.
 ## Repository layout
 
 - `templates/` — governance contract and setup-agent questionnaire.
+- `docs/` — reusable architecture notes and deployment feedback.
 - `TODO.md` — product definition, requirements, and milestone backlog.
 - `clientagent/` — framework runtime modules (under construction).
 - `tests/` — portable framework tests.
@@ -26,3 +27,9 @@ request -> bounded work -> independent verification -> review artifact
 
 Configuration, policy, credentials, authorization, sensitive resources, and
 release destinations remain outside user and agent control.
+
+Routing is also server governed. A host may report bounded availability facts,
+but availability cannot grant eligibility. Route proposals are checked against
+a versioned policy, approved permission envelope, approved access-service
+identity, and verifier-independence requirements before they can be presented
+for human approval.
