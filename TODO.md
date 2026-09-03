@@ -208,6 +208,9 @@ CLI agents do not share one permission model and do not automatically follow
 the governance file. Treat the file as framework policy that must be enforced
 outside the model through a versioned adapter and independent controls.
 
+- [x] Provide a versioned capability-matrix model that binds named governance
+      fields to native or external enforcement and rejects prompt-only mappings.
+
 - [ ] Maintain a capability matrix for every supported CLI agent and version,
       covering filesystem access, network access, tools, commands, extensions,
       external services, model selection, configuration precedence, approvals,

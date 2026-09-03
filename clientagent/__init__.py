@@ -46,6 +46,13 @@ from .review import (
     ReviewRecord,
     ReviewWorkflow,
 )
+from .capability_matrix import (
+    CapabilityCertification,
+    CapabilityMapping,
+    CapabilityMatrix,
+    CapabilityMatrixError,
+    EnforcementKind,
+)
 
 __all__ = [
     "DeploymentAdapter",
@@ -77,6 +84,11 @@ __all__ = [
     "ReviewError",
     "ReviewRecord",
     "ReviewWorkflow",
+    "CapabilityCertification",
+    "CapabilityMapping",
+    "CapabilityMatrix",
+    "CapabilityMatrixError",
+    "EnforcementKind",
     "SetupDraft",
     "SetupError",
     "SetupFinding",
