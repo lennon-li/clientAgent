@@ -59,7 +59,7 @@ def test_review_cannot_be_edited_without_an_explicit_revision_request():
     )
     assert revised.revision == 1
     assert revised.candidate_id == "candidate-2"
-    assert revised.artifact_id is None
+    assert revised.artifact_id == "artifact-1"
 
 
 def test_review_decisions_require_an_artifact_and_review_role():

@@ -37,6 +37,15 @@ from .verification import (
     VerificationEvidence,
 )
 from .artifacts import ArtifactError, ImmutableArtifactBuilder, ReviewArtifact
+from .review import (
+    MaintainerDecision,
+    MaintainerDecisionRecord,
+    MaintainerHandoff,
+    ReviewAction,
+    ReviewError,
+    ReviewRecord,
+    ReviewWorkflow,
+)
 
 __all__ = [
     "DeploymentAdapter",
@@ -61,6 +70,13 @@ __all__ = [
     "ReviewArtifact",
     "VerificationError",
     "VerificationEvidence",
+    "MaintainerDecision",
+    "MaintainerDecisionRecord",
+    "MaintainerHandoff",
+    "ReviewAction",
+    "ReviewError",
+    "ReviewRecord",
+    "ReviewWorkflow",
     "SetupDraft",
     "SetupError",
     "SetupFinding",

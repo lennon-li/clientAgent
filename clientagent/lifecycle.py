@@ -197,7 +197,6 @@ class LifecycleController:
         next_revision = self._snapshot.revision
         if target_state == LifecycleState.WORKING and current == LifecycleState.REVISION_REQUESTED:
             next_revision += 1
-            next_artifact = None
         event = LifecycleTransition(
             sequence=len(self._snapshot.history) + 1,
             from_state=current,

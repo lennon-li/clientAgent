@@ -101,7 +101,7 @@ tools.
       user and agent control.
 - [ ] Every material result is independently verified before review.
 - [ ] Every reviewable artifact is immutable, attributable, and reproducible.
-- [ ] Review and revision are first-class workflow states, not chat conventions.
+- [x] Review and revision are first-class workflow states, not chat conventions.
 - [ ] User acceptance and technical approval are separate decisions.
 - [ ] Failure or uncertainty stops progress safely and preserves evidence.
 - [ ] New capabilities require an explicit policy change and human approval.
@@ -339,30 +339,30 @@ outside the model through a versioned adapter and independent controls.
 
 ### Supported review actions
 
-- [ ] Provide three explicit user actions:
+- [x] Provide three explicit user actions:
       - **Accept for maintainer review**;
       - **Request revision**;
       - **Reject or abandon**.
-- [ ] Attach every review action and comment to the exact artifact version the
+- [x] Attach every review action and comment to the exact artifact version the
       user saw.
-- [ ] On a revision request, summarize the requested differences before work
+- [x] On a revision request, summarize the requested differences before work
       resumes.
-- [ ] Create a new candidate, new verification record, and new artifact for
+- [x] Create a new candidate, new verification record, and new artifact for
       every revision.
 - [ ] Let the user compare the new artifact with the immediately preceding
       version.
 - [ ] Allow a user to leave and later resume the pending review without
       restarting completed work.
-- [ ] Preserve rejected and superseded artifacts for audit according to policy.
+- [x] Preserve rejected and superseded artifacts for audit according to policy.
 
 ### Maintainer handoff
 
 - [ ] User acceptance changes the state to `accepted`; it does not authorize
       integration, release, or deployment.
-- [ ] Generate a maintainer handoff containing the accepted artifact, revision
+- [x] Generate a maintainer handoff containing the accepted artifact, revision
       history, candidate changes, verification evidence, unresolved risks, and
       the user's acceptance identity and timestamp.
-- [ ] Require the maintainer to approve, request revision, or reject.
+- [x] Require the maintainer to approve, request revision, or reject.
 - [ ] Keep release and production actions outside the client-agent workflow.
 - [ ] If downstream release automation is introduced, require a separate,
       authenticated maintainer action against the accepted candidate version.
