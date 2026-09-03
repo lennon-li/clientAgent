@@ -22,6 +22,13 @@ from .runtime import (
     RuntimeCapabilitySnapshot,
     RuntimeEnforcementAdapter,
 )
+from .lifecycle import (
+    LifecycleController,
+    LifecycleError,
+    LifecycleSnapshot,
+    LifecycleState,
+    LifecycleTransition,
+)
 
 __all__ = [
     "DeploymentAdapter",
@@ -33,6 +40,11 @@ __all__ = [
     "RuntimeAttestation",
     "RuntimeCapabilitySnapshot",
     "RuntimeEnforcementAdapter",
+    "LifecycleController",
+    "LifecycleError",
+    "LifecycleSnapshot",
+    "LifecycleState",
+    "LifecycleTransition",
     "SetupDraft",
     "SetupError",
     "SetupFinding",

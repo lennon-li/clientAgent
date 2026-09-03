@@ -276,22 +276,22 @@ outside the model through a versioned adapter and independent controls.
 
 ## P0 — implement a governed lifecycle
 
-- [ ] Use an explicit state model:
+- [x] Use an explicit state model:
 
       `submitted -> scoped -> working -> verification -> artifact_building ->`
       `review_ready -> revision_requested | accepted | rejected`
 
-- [ ] Allow any processing state to transition to `needs_attention` when safe
+- [x] Allow any processing state to transition to `needs_attention` when safe
       continuation is uncertain.
 - [ ] Require the request to fit the agent contract before work begins.
-- [ ] Preserve the relationship between the request, candidate result,
+- [x] Preserve the relationship between the request, candidate result,
       verification evidence, artifact, and review decision.
-- [ ] Prevent editing while an artifact is awaiting review unless the reviewer
+- [x] Prevent editing while an artifact is awaiting review unless the reviewer
       explicitly requests a revision.
-- [ ] Resume revisions from the exact result associated with the reviewed
+- [x] Resume revisions from the exact result associated with the reviewed
       artifact, not from an ambiguous or later state.
-- [ ] Re-run verification and artifact creation after every revision.
-- [ ] Keep all prior review states and artifact versions available according to
+- [x] Re-run verification and artifact creation after every revision.
+- [x] Keep all prior review states and artifact versions available according to
       the retention policy.
 - [ ] Require a separate maintainer decision after user acceptance.
 
